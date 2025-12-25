@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>ARCADE DUEL — Split-Screen FPS</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- One WebGL canvas, rendered twice with scissor for split-screen. -->
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <!-- Global overlays (full width) -->
+      <div id="global-ui" class="ui-layer">
+        <div id="scoreboard" class="scoreboard hidden">P1: 0 | P2: 0</div>
+        <div id="split-bar" class="split-bar hidden"></div>
+        <div id="center-msg" class="center-msg hidden">FIGHT</div>
+
+        <div id="win-screen" class="win-screen hidden">
+          <div class="win-title" id="win-title">P1 WINS</div>
+          <button id="restart-btn" class="btn">Restart</button>
+        </div>
+
+        <div id="controls-help" class="controls-help hidden">
+          <div class="controls-card">
+            <div class="controls-title">Controls</div>
+            <div class="controls-grid">
+              <div class="controls-col">
+                <div class="controls-col-title">Player 1 (Left)</div>
+                <div>Move: <b>WASD</b></div>
+                <div>Look: <b>Q/F/T/G</b></div>
+                <div>Jump: <b>Space</b></div>
+                <div>Use arcade: <b>E</b></div>
+                <div>Reload: <b>R</b></div>
+                <div>Fire: <b>Shift</b> (alt) / <b>Mouse Left</b> (optional)</div>
+              </div>
+              <div class="controls-col">
+                <div class="controls-col-title">Player 2 (Right)</div>
+                <div>Move: <b>Arrow Keys</b></div>
+                <div>Look: <b>Mouse</b> (pointer lock)</div>
+                <div>Fire: <b>Mouse Left</b></div>
+                <div>Use arcade: <b>Mouse Right</b></div>
+                <div>Reload: <b>Mouse Middle</b></div>
+                <div>Exit pointer lock: <b>Esc</b></div>
+              </div>
+            </div>
+            <div class="controls-foot">
+              <div>Toggle help: <b>H</b></div>
+              <div style="margin-top:8px;">
+                Mouse Fire:
+                <select id="mouse-fire-live">
+                  <option value="p2">P2 only</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-player half overlays (must ONLY appear on that half) -->
+      <div id="hud-p1" class="hud half left">
+        <div class="prompt" id="p1-prompt"></div>
+        <div class="invuln" id="p1-invuln"></div>
+        <div class="weapon" id="p1-weapon"></div>
+        <div class="hp-bar-wrap left">
+          <div class="hp-label">P1 HP</div>
+          <div class="hp-bar"><div class="hp-fill" id="p1-hp"></div></div>
+        </div>
+      </div>
+
+      <div id="hud-p2" class="hud half right">
+        <div class="prompt" id="p2-prompt"></div>
+        <div class="invuln" id="p2-invuln"></div>
+        <div class="weapon" id="p2-weapon"></div>
+        <div class="hp-bar-wrap right">
+          <div class="hp-label">P2 HP</div>
+          <div class="hp-bar"><div class="hp-fill" id="p2-hp"></div></div>
+        </div>
+      </div>
+
+      <!-- Task overlays: isolated per-half -->
+      <div id="task-p1" class="task-overlay half left hidden"></div>
+      <div id="task-p2" class="task-overlay half right hidden"></div>
+
+      <!-- Menu / start transition overlay -->
+      <div id="menu" class="menu">
+        <div class="menu-center">
+          <div class="title">ARCADE DUEL</div>
+          <button id="start-btn" class="btn btn-start">START</button>
+          <div class="menu-row">
+            <button id="fullscreen-btn" class="btn">Fullscreen</button>
+            <label class="vol">
+              Volume
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" />
+            </label>
+          </div>
+          <div class="menu-row">
+            <label class="toggle">
+              Mouse Fire:
+              <select id="mouse-fire">
+                <option value="p2">P2 only</option>
+                <option value="both">Both</option>
+              </select>
+            </label>
+            <div class="hint">Press <b>H</b> for controls help.</div>
+          </div>
+        </div>
+
+        <div id="fade" class="fade"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
