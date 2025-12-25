@@ -9,6 +9,11 @@ import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
 
+// Vite sets BASE_URL correctly for GitHub Pages (e.g. "/Cookiez/") and for relative builds ("./").
+// IMPORTANT: Never hardcode "/assets/..." for GitHub Pages project sites, because "/assets"
+// resolves to the domain root instead of "/<repo>/assets".
+const assetUrl = (p) => `${import.meta.env.BASE_URL}${String(p).replace(/^\//, '')}`;
+
 export class GameApp {
   constructor({ canvas }) {
     this.canvas = canvas;
@@ -124,7 +129,7 @@ export class GameApp {
 
     ui.startBtn.addEventListener('click', async () => {
       this.audio.ensure(); // user gesture unlock
-      await this.audio.playOneShot('/assets/audio/sfx/ui_click.ogg', { volume: 0.7 });
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7 });
       this._startTransitionToGame();
     });
 
@@ -155,7 +160,7 @@ export class GameApp {
     });
 
     ui.restartBtn.addEventListener('click', async () => {
-      await this.audio.playOneShot('/assets/audio/sfx/ui_click.ogg', { volume: 0.7 });
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7 });
       this._toMenu();
     });
 
@@ -244,7 +249,7 @@ export class GameApp {
     this._spawnInElevator();
 
     // Start ambient (optional; no crash if missing).
-    this.audio.playAmbientLoop('/assets/audio/music/arcade_ambient.ogg', { volume: 0.35 });
+    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.35 });
   }
 
   _resetRound() {
@@ -719,9 +724,9 @@ export class GameApp {
     w.consumeShot();
 
     // SFX.
-    if (w.type === WeaponType.PISTOL) this.audio.playOneShot('/assets/audio/sfx/pistol.ogg', { volume: 0.6 });
-    if (w.type === WeaponType.VANDAL) this.audio.playOneShot('/assets/audio/sfx/vandal.ogg', { volume: 0.55 });
-    if (w.type === WeaponType.SNIPER) this.audio.playOneShot('/assets/audio/sfx/sniper.ogg', { volume: 0.7 });
+    if (w.type === WeaponType.PISTOL) this.audio.playOneShot(assetUrl('assets/audio/sfx/pistol.ogg'), { volume: 0.6 });
+    if (w.type === WeaponType.VANDAL) this.audio.playOneShot(assetUrl('assets/audio/sfx/vandal.ogg'), { volume: 0.55 });
+    if (w.type === WeaponType.SNIPER) this.audio.playOneShot(assetUrl('assets/audio/sfx/sniper.ogg'), { volume: 0.7 });
   }
 
   _knifeAttack(shooterId, targetId) {
@@ -739,9 +744,9 @@ export class GameApp {
     if (hits.length) {
       const died = target.takeDamage(damageForWeapon(WeaponType.KNIFE));
       if (died) this._onKill(shooterId, targetId);
-      this.audio.playOneShot('/assets/audio/sfx/knife.ogg', { volume: 0.6 });
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6 });
     } else {
-      this.audio.playOneShot('/assets/audio/sfx/knife.ogg', { volume: 0.35 });
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.35 });
     }
     w.consumeShot();
   }

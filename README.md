@@ -16,6 +16,13 @@ npm run build
 npm run preview
 ```
 
+## GitHub Pages deploy (neden butonlar çalışmıyordu?)
+
+Vite projeleri **repo kökünden** (source) servis edilirse JS paketlenmediği için çalışmaz. GitHub Pages’te doğru yöntem:
+
+- Pages kaynağı: **GitHub Actions**
+- Deploy: workflow `Deploy to GitHub Pages` (`.github/workflows/deploy-pages.yml`) `dist/` klasörünü yayınlar.
+
 ## Core controls
 
 - **Player 1 (Left)**
