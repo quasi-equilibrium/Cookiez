@@ -69,10 +69,14 @@ export class GameApp {
     this._raycaster = new THREE.Raycaster();
     this._tmpV = new THREE.Vector3();
     this._tmpV2 = new THREE.Vector3();
+    this._tmpHitEnd = new THREE.Vector3();
 
     this.config = {
       mouseFireMode: 'p2' // 'p2' | 'both'
     };
+
+    // Footstep cadence per player.
+    this._stepT = { p1: 0, p2: 0 };
 
     this._ui = this._bindUI();
 
@@ -84,6 +88,7 @@ export class GameApp {
       onClose: (playerId) => {
         // Fix: closing via UI button must also unlock the player's controls.
         this.players[playerId].controlsLocked = false;
+        this._refreshTaskBeepLoop();
       }
     });
 
@@ -150,8 +155,8 @@ export class GameApp {
     ui.p2.radarCtx = ui.p2.radar?.getContext('2d');
 
     ui.startBtn.addEventListener('click', async () => {
-      this.audio.ensure(); // user gesture unlock
-      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7 });
+      await this.audio.unlock(); // user gesture unlock (required for audio in browsers)
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
       this._startTransitionToGame();
     });
 
@@ -182,7 +187,8 @@ export class GameApp {
     });
 
     ui.restartBtn.addEventListener('click', async () => {
-      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7 });
+      await this.audio.unlock();
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
       this._toMenu();
     });
 
@@ -230,6 +236,8 @@ export class GameApp {
     this.players.p1.controlsLocked = false;
     this.players.p2.controlsLocked = false;
 
+    this.audio.stopLoop('elevator');
+    this.audio.stopLoop('taskBeep');
     this._resetRound();
   }
 
@@ -273,7 +281,9 @@ export class GameApp {
     this._spawnInElevator();
 
     // Start ambient (optional; no crash if missing).
-    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.35 });
+    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.35, fallback: 'elevatorHum' });
+    // Extra elevator hum layer.
+    this.audio.startLoop('elevator', 'elevatorHum', { volume: 0.55 });
   }
 
   _resetRound() {
@@ -345,6 +355,7 @@ export class GameApp {
       if (this.players[id].dead && this.taskSystem.isOpen(id)) {
         this.taskSystem.close(id);
         this.players[id].controlsLocked = false;
+        this._refreshTaskBeepLoop();
       }
     }
 
@@ -437,6 +448,9 @@ export class GameApp {
     document.exitPointerLock?.();
     p.controlsLocked = true;
     this.taskSystem.open(playerId, taskIndex);
+    // Task start SFX + shared beep loop while ANY player is in a task.
+    this.audio.playOneShot(assetUrl('assets/audio/sfx/task_start.ogg'), { volume: 0.8, fallback: 'reload' });
+    this._refreshTaskBeepLoop();
   }
 
   _onTaskComplete(playerId, taskIndex) {
@@ -445,6 +459,14 @@ export class GameApp {
     p.taskLevel = clamp(p.taskLevel + 1, 0, 3);
     this.weapons[playerId].setWeapon(weaponForTaskLevel(p.taskLevel));
     this.weaponViews[playerId].setWeapon(this.weapons[playerId].type);
+    this.audio.playOneShot(assetUrl('assets/audio/sfx/task_complete.ogg'), { volume: 0.9, fallback: 'taskComplete' });
+    this._refreshTaskBeepLoop();
+  }
+
+  _refreshTaskBeepLoop() {
+    const anyOpen = this.taskSystem.isOpen('p1') || this.taskSystem.isOpen('p2');
+    if (anyOpen) this.audio.startLoop('taskBeep', 'taskBeep', { volume: 0.12 });
+    else this.audio.stopLoop('taskBeep');
   }
 
   _nearestArcade(player) {
@@ -490,6 +512,9 @@ export class GameApp {
     // Movement.
     this._updateMovement('p1', dt);
     this._updateMovement('p2', dt);
+
+    // Footsteps (placeholder synth if no asset).
+    this._updateFootsteps(dt);
 
     // Combat.
     this._handleReloads();
@@ -685,12 +710,32 @@ export class GameApp {
     // P1 reload: R
     if (this.input.wasPressed('KeyR') && !this.players.p1.controlsLocked && !this.players.p1.dead) {
       const ok = this.weapons.p1.startReload();
-      if (ok) this.audio.playOneShot('/assets/audio/sfx/reload.ogg', { volume: 0.7 });
+      if (ok) this.audio.playOneShot(assetUrl('assets/audio/sfx/reload.ogg'), { volume: 0.7, fallback: 'reload' });
     }
     // P2 reload: Middle click
     if (this.input.mouse.middlePressed && !this.players.p2.controlsLocked && !this.players.p2.dead) {
       const ok = this.weapons.p2.startReload();
-      if (ok) this.audio.playOneShot('/assets/audio/sfx/reload.ogg', { volume: 0.7 });
+      if (ok) this.audio.playOneShot(assetUrl('assets/audio/sfx/reload.ogg'), { volume: 0.7, fallback: 'reload' });
+    }
+  }
+
+  _updateFootsteps(dt) {
+    for (const id of ['p1', 'p2']) {
+      const p = this.players[id];
+      if (p.dead) continue;
+      if (!p.onGround) continue;
+      if (p.controlsLocked) continue;
+      const v = Math.hypot(p.vel.x, p.vel.z);
+      const moving = v > 1.0;
+      if (!moving) {
+        this._stepT[id] = 0;
+        continue;
+      }
+      this._stepT[id] = Math.max(0, this._stepT[id] - dt);
+      if (this._stepT[id] === 0) {
+        this._stepT[id] = 0.42;
+        this.audio.playOneShot(assetUrl('assets/audio/sfx/step.ogg'), { volume: 0.25, fallback: 'step' });
+      }
     }
   }
 
@@ -760,7 +805,7 @@ export class GameApp {
 
     const hits = this._raycaster.intersectObjects([target.hitbox, ...this.world.raycastMeshes], true);
     const hit = hits[0];
-    const end = this._tmpHitEnd ?? (this._tmpHitEnd = new THREE.Vector3());
+    const end = this._tmpHitEnd;
     if (hit) end.copy(hit.point);
     else end.copy(origin).addScaledVector(dir, 120);
 
@@ -777,9 +822,9 @@ export class GameApp {
     w.consumeShot();
 
     // SFX.
-    if (w.type === WeaponType.PISTOL) this.audio.playOneShot(assetUrl('assets/audio/sfx/pistol.ogg'), { volume: 0.6 });
-    if (w.type === WeaponType.VANDAL) this.audio.playOneShot(assetUrl('assets/audio/sfx/vandal.ogg'), { volume: 0.55 });
-    if (w.type === WeaponType.SNIPER) this.audio.playOneShot(assetUrl('assets/audio/sfx/sniper.ogg'), { volume: 0.7 });
+    if (w.type === WeaponType.PISTOL) this.audio.playOneShot(assetUrl('assets/audio/sfx/pistol.ogg'), { volume: 0.6, fallback: 'pistol' });
+    if (w.type === WeaponType.VANDAL) this.audio.playOneShot(assetUrl('assets/audio/sfx/vandal.ogg'), { volume: 0.55, fallback: 'vandal' });
+    if (w.type === WeaponType.SNIPER) this.audio.playOneShot(assetUrl('assets/audio/sfx/sniper.ogg'), { volume: 0.7, fallback: 'sniper' });
   }
 
   _knifeAttack(shooterId, targetId) {
@@ -798,15 +843,17 @@ export class GameApp {
       this.weaponViews[shooterId].triggerKnifeHitSwing();
       const died = target.takeDamage(damageForWeapon(WeaponType.KNIFE));
       if (died) this._onKill(shooterId, targetId);
-      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6 });
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6, fallback: 'pistol' });
     } else {
       this.weaponViews[shooterId].triggerKnifeWhiffSwing();
-      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.35 });
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.35, fallback: 'step' });
     }
     w.consumeShot();
   }
 
   _onKill(killerId, victimId) {
+    // Death SFX (everyone hears).
+    this.audio.playOneShot(assetUrl('assets/audio/sfx/death.ogg'), { volume: 0.7, fallback: 'death' });
     this.scores[killerId] += 1;
     if (this.scores[killerId] >= WIN_KILLS) {
       this._enterWin(killerId);
@@ -942,36 +989,6 @@ export class GameApp {
         const p = toRadar(a.position);
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.fillText('?', p.x, p.y);
-      }
-
-      // Other player dot.
-      {
-        const p = toRadar(other.pos);
-        ctx.fillStyle = id === 'p1' ? '#ff4fd7' : '#63b3ff';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Self arrow (shows facing direction).
-      {
-        const p = toRadar(self.pos);
-        const yaw = self.yaw;
-        const dx = -Math.sin(yaw);
-        const dz = -Math.cos(yaw);
-        const ang = Math.atan2(-dz, dx); // map world forward to screen orientation
-
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(ang);
-        ctx.fillStyle = id === 'p1' ? '#63b3ff' : '#ff4fd7';
-        ctx.beginPath();
-        ctx.moveTo(8, 0);
-        ctx.lineTo(-6, 5);
-        ctx.lineTo(-6, -5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
       }
     };
 

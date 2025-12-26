@@ -15,7 +15,8 @@ export class WeaponView {
     this.root.name = `${id}-weaponRoot`;
     this.root.position.set(0.32, -0.28, -0.58);
     this.root.rotation.set(0, 0, 0);
-    this.root.scale.setScalar(1);
+    // User request: bigger guns.
+    this.root.scale.setScalar(1.35);
 
     // Build weapon meshes.
     this.models = {
@@ -228,8 +229,8 @@ function buildPistol() {
   grip.rotation.z = -0.35;
   g.add(body, barrel, grip);
 
-  // Small in-hand.
-  g.scale.setScalar(0.85);
+  // Small in-hand (still smaller than other guns).
+  g.scale.setScalar(0.95);
   g.position.set(0.02, -0.02, 0);
   g.rotation.y = -0.25;
   return g;
@@ -258,7 +259,7 @@ function buildVandal() {
   g.userData.mainMat = mainMat;
 
   // Bigger than pistol.
-  g.scale.setScalar(1.05);
+  g.scale.setScalar(1.2);
   g.position.set(0.0, -0.04, 0);
   g.rotation.y = -0.18;
   return g;
@@ -282,7 +283,7 @@ function buildSniper() {
   stock.position.set(-0.05, 0.08, -0.14);
 
   g.add(body, barrel, scope, stock);
-  g.scale.setScalar(1.08);
+  g.scale.setScalar(1.22);
   g.position.set(0.0, -0.04, 0);
   g.rotation.y = -0.16;
   return g;
