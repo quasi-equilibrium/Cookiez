@@ -197,18 +197,26 @@ export class WeaponView {
 
 function buildKnife() {
   const g = new THREE.Group();
-  const blade = new THREE.Mesh(
-    new THREE.BoxGeometry(0.05, 0.02, 0.32),
-    new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.25, metalness: 0.9 })
-  );
-  blade.position.set(0.12, 0.02, -0.12);
-  const handle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.02, 0.12, 8),
-    new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.8, metalness: 0.1 })
-  );
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0x252a33, roughness: 0.18, metalness: 0.95 });
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.85, metalness: 0.1 });
+
+  // Blade: tapered "real knife" feel using a long thin box + tip cone.
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.26), bladeMat);
+  blade.position.set(0.14, 0.03, -0.12);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.07, 10), bladeMat);
+  tip.rotation.x = Math.PI / 2;
+  tip.position.set(0.14, 0.03, -0.28);
+
+  // Guard + handle.
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.03), bladeMat);
+  guard.position.set(0.1, 0.02, -0.02);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 10), handleMat);
   handle.rotation.x = Math.PI / 2;
-  handle.position.set(0.04, 0.02, 0.02);
-  g.add(blade, handle);
+  handle.position.set(0.06, 0.02, 0.06);
+  const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 10), handleMat);
+  pommel.position.set(0.06, 0.02, 0.14);
+
+  g.add(blade, tip, guard, handle, pommel);
   // Pose to lower-right.
   g.position.set(0.12, -0.03, 0);
   g.rotation.y = -0.35;
