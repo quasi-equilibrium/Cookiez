@@ -241,7 +241,7 @@ export class GameApp {
     this._ui.splitBar.classList.remove('hidden');
     this._ui.win.classList.add('hidden');
     this._ui.centerMsg.classList.remove('hidden');
-    this._ui.centerMsg.textContent = 'ELEVATOR';
+    this._ui.centerMsg.textContent = 'ELEVATOR 10';
 
     // Reset elevator timer and close doors.
     this.elevator.t = 10;
@@ -336,6 +336,7 @@ export class GameApp {
       const shown = Math.ceil(this.elevator.t);
       if (shown !== this.elevator._lastShownInt) {
         this.elevator._lastShownInt = shown;
+        this._ui.centerMsg.textContent = `ELEVATOR ${shown}`;
         this.world.setElevatorDisplay('p1', String(shown));
         this.world.setElevatorDisplay('p2', String(shown));
       }
@@ -519,7 +520,8 @@ export class GameApp {
     const yawSpeed = 2.2;
     const pitchSpeed = 1.8;
     if (this.input.isDown('KeyQ')) p.yaw -= yawSpeed * dt;
-    if (this.input.isDown('KeyH')) p.yaw += yawSpeed * dt;
+    // Keep both for comfort: user requested H = turn right; F also works.
+    if (this.input.isDown('KeyH') || this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
     if (this.input.isDown('KeyT')) p.pitch += pitchSpeed * dt;
     if (this.input.isDown('KeyG')) p.pitch -= pitchSpeed * dt;
     p.pitch = clamp(p.pitch, -1.35, 1.35);

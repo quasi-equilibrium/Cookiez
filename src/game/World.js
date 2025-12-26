@@ -264,14 +264,6 @@ export class World {
       frame.position.set(anchor.x, 2.5, anchor.z);
       this.scene.add(frame);
 
-      // Hollow look by adding a dark inner box.
-      const inner = new THREE.Mesh(
-        new THREE.BoxGeometry(5.0, 4.6, 5.0),
-        new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 1.0, metalness: 0.0 })
-      );
-      inner.position.set(anchor.x, 2.3, anchor.z);
-      this.scene.add(inner);
-
       // Door at the side facing the center (towards +X for P1 elevator, towards -X for P2).
       const doorDir = key === 'p1' ? 1 : -1;
       const door = new THREE.Mesh(
@@ -335,6 +327,10 @@ export class World {
     if (!c) return;
     c.visible = alpha > 0.01;
     c.material.opacity = alpha;
+
+    // If the cabin is visible, hide the 3D display so the player sees "only white".
+    const disp = this.elevators[key].display?.plane;
+    if (disp) disp.visible = alpha <= 0.01;
   }
 
   setElevatorDisplay(key, text) {
