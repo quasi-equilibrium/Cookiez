@@ -68,10 +68,11 @@ function bestMoveTttMin(cells, turn, other) {
 }
 
 export class TaskSystem {
-  constructor({ input, elP1, elP2, onComplete }) {
+  constructor({ input, elP1, elP2, onComplete, onClose }) {
     this.input = input;
     this.el = { p1: elP1, p2: elP2 };
     this.onComplete = onComplete;
+    this.onClose = onClose;
 
     this.active = {
       p1: null,
@@ -95,6 +96,7 @@ export class TaskSystem {
     const host = this.el[playerId];
     host.classList.add('hidden');
     host.innerHTML = '';
+    this.onClose?.(playerId);
   }
 
   open(playerId, taskIndex) {

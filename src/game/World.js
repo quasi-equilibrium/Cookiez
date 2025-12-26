@@ -8,6 +8,9 @@ export class World {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#05060a');
 
+    this.roomW = 80;
+    this.roomD = 40;
+
     /** @type {Array<{box:THREE.Box3, tag:string}>} */
     this.colliders = [];
     /** @type {Array<import('three').Object3D>} */
@@ -20,8 +23,8 @@ export class World {
     this.arcades = [];
 
     this.elevators = {
-      p1: { doorCollider: null, doorMesh: null, display: null, anchor: new THREE.Vector3(-34, 0, 0) },
-      p2: { doorCollider: null, doorMesh: null, display: null, anchor: new THREE.Vector3(34, 0, 0) }
+      p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
+      p2: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(34, 0, 0) }
     };
 
     this._displayCanvas = {
@@ -47,8 +50,8 @@ export class World {
     scene.add(key);
 
     // Room dimensions.
-    const roomW = 80; // X
-    const roomD = 40; // Z
+    const roomW = this.roomW; // X
+    const roomD = this.roomD; // Z
     const wallH = 8;
 
     // Floor.
@@ -239,6 +242,19 @@ export class World {
 
   _addElevators() {
     const mkElevator = (anchor, key) => {
+      // White cabin that hides the map completely during the countdown.
+      // We render its faces from the inside (BackSide) so the player camera sees "only white".
+      const cabinMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.BackSide,
+        transparent: true,
+        opacity: 1.0
+      });
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(5.0, 4.6, 5.0), cabinMat);
+      cabin.position.set(anchor.x, 2.3, anchor.z);
+      this.scene.add(cabin);
+      this.elevators[key].cabin = cabin;
+
       const frameMat = new THREE.MeshStandardMaterial({
         color: 0x1a2334,
         roughness: 0.55,
@@ -247,14 +263,6 @@ export class World {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 5.0, 5.4), frameMat);
       frame.position.set(anchor.x, 2.5, anchor.z);
       this.scene.add(frame);
-
-      // Hollow look by adding a dark inner box.
-      const inner = new THREE.Mesh(
-        new THREE.BoxGeometry(5.0, 4.6, 5.0),
-        new THREE.MeshStandardMaterial({ color: 0x05070c, roughness: 1.0, metalness: 0.0 })
-      );
-      inner.position.set(anchor.x, 2.3, anchor.z);
-      this.scene.add(inner);
 
       // Door at the side facing the center (towards +X for P1 elevator, towards -X for P2).
       const doorDir = key === 'p1' ? 1 : -1;
@@ -312,6 +320,17 @@ export class World {
 
     mkElevator(this.elevators.p1.anchor, 'p1');
     mkElevator(this.elevators.p2.anchor, 'p2');
+  }
+
+  setElevatorCabinAlpha(key, alpha) {
+    const c = this.elevators[key].cabin;
+    if (!c) return;
+    c.visible = alpha > 0.01;
+    c.material.opacity = alpha;
+
+    // If the cabin is visible, hide the 3D display so the player sees "only white".
+    const disp = this.elevators[key].display?.plane;
+    if (disp) disp.visible = alpha <= 0.01;
   }
 
   setElevatorDisplay(key, text) {

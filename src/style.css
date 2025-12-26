@@ -135,6 +135,24 @@ body {
   text-align: right;
 }
 
+.radar {
+  position: absolute;
+  bottom: 62px; /* above HP bar */
+  width: 160px;
+  height: 160px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.radar-left {
+  left: 18px;
+}
+.radar-right {
+  right: 18px;
+}
+
 .hp-bar-wrap {
   position: absolute;
   bottom: 18px;

@@ -30,8 +30,10 @@ export function dist2(a, b) {
 
 export function yawPitchToDir(yaw, pitch, out = new THREE.Vector3()) {
   // yaw around Y, pitch around X.
+  // IMPORTANT: Match Three.js camera forward direction.
+  // In Three.js, a camera with yaw=0 looks towards -Z.
   const cp = Math.cos(pitch);
-  out.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
+  out.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
   return out.normalize();
 }
 

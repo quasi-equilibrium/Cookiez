@@ -68,7 +68,11 @@ export class GameApp {
       input: this.input,
       elP1: document.getElementById('task-p1'),
       elP2: document.getElementById('task-p2'),
-      onComplete: (playerId, taskIndex) => this._onTaskComplete(playerId, taskIndex)
+      onComplete: (playerId, taskIndex) => this._onTaskComplete(playerId, taskIndex),
+      onClose: (playerId) => {
+        // Fix: closing via UI button must also unlock the player's controls.
+        this.players[playerId].controlsLocked = false;
+      }
     });
 
     this._resizeObserver = null;
@@ -123,9 +127,13 @@ export class GameApp {
         hp: document.getElementById('p2-hp'),
         prompt: document.getElementById('p2-prompt'),
         invuln: document.getElementById('p2-invuln'),
-        weapon: document.getElementById('p2-weapon')
+        weapon: document.getElementById('p2-weapon'),
+        radar: document.getElementById('p2-radar')
       }
     };
+    ui.p1.radar = document.getElementById('p1-radar');
+    ui.p1.radarCtx = ui.p1.radar?.getContext('2d');
+    ui.p2.radarCtx = ui.p2.radar?.getContext('2d');
 
     ui.startBtn.addEventListener('click', async () => {
       this.audio.ensure(); // user gesture unlock
@@ -166,7 +174,7 @@ export class GameApp {
 
     // Help overlay (H).
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyH') {
+      if (e.code === 'KeyP') {
         ui.controlsHelp.classList.toggle('hidden');
         if (!ui.controlsHelp.classList.contains('hidden')) document.exitPointerLock?.();
       }
@@ -233,7 +241,7 @@ export class GameApp {
     this._ui.splitBar.classList.remove('hidden');
     this._ui.win.classList.add('hidden');
     this._ui.centerMsg.classList.remove('hidden');
-    this._ui.centerMsg.textContent = 'ELEVATOR';
+    this._ui.centerMsg.textContent = 'ELEVATOR 10';
 
     // Reset elevator timer and close doors.
     this.elevator.t = 10;
@@ -242,6 +250,8 @@ export class GameApp {
     this.elevator._lastShownInt = 10;
     this.world.setElevatorDoorOpen('p1', 0);
     this.world.setElevatorDoorOpen('p2', 0);
+    this.world.setElevatorCabinAlpha('p1', 1);
+    this.world.setElevatorCabinAlpha('p2', 1);
     this.world.setElevatorDisplay('p1', '10');
     this.world.setElevatorDisplay('p2', '10');
 
@@ -326,6 +336,7 @@ export class GameApp {
       const shown = Math.ceil(this.elevator.t);
       if (shown !== this.elevator._lastShownInt) {
         this.elevator._lastShownInt = shown;
+        this._ui.centerMsg.textContent = `ELEVATOR ${shown}`;
         this.world.setElevatorDisplay('p1', String(shown));
         this.world.setElevatorDisplay('p2', String(shown));
       }
@@ -336,6 +347,10 @@ export class GameApp {
         this.elevator.doorOpen01 = Math.min(1, this.elevator.doorOpen01 + dt * 1.2);
         this.world.setElevatorDoorOpen('p1', this.elevator.doorOpen01);
         this.world.setElevatorDoorOpen('p2', this.elevator.doorOpen01);
+        // Fade away the white cabin as doors open so the arena becomes visible.
+        const alpha = clamp(1 - this.elevator.doorOpen01 * 1.15, 0, 1);
+        this.world.setElevatorCabinAlpha('p1', alpha);
+        this.world.setElevatorCabinAlpha('p2', alpha);
 
         if (this.elevator.fightMsgTimer <= 0) {
           this._ui.centerMsg.textContent = 'FIGHT';
@@ -355,6 +370,7 @@ export class GameApp {
       this.taskSystem.update(dt);
       this._updateHUD();
       this._updateScoreboard();
+      this._updateRadar();
     }
 
     if (this.state === 'WIN') {
@@ -504,7 +520,8 @@ export class GameApp {
     const yawSpeed = 2.2;
     const pitchSpeed = 1.8;
     if (this.input.isDown('KeyQ')) p.yaw -= yawSpeed * dt;
-    if (this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
+    // Keep both for comfort: user requested H = turn right; F also works.
+    if (this.input.isDown('KeyH') || this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
     if (this.input.isDown('KeyT')) p.pitch += pitchSpeed * dt;
     if (this.input.isDown('KeyG')) p.pitch -= pitchSpeed * dt;
     p.pitch = clamp(p.pitch, -1.35, 1.35);
@@ -546,8 +563,13 @@ export class GameApp {
     // Convert local movement to world using yaw.
     const sy = Math.sin(p.yaw);
     const cy = Math.cos(p.yaw);
-    const dirX = mx * cy + mz * sy;
-    const dirZ = mz * cy - mx * sy;
+    // Three.js camera forward at yaw=0 is -Z.
+    const forwardX = -sy;
+    const forwardZ = -cy;
+    const rightX = cy;
+    const rightZ = -sy;
+    const dirX = rightX * mx + forwardX * mz;
+    const dirZ = rightZ * mx + forwardZ * mz;
 
     // Simple acceleration.
     const accel = 24;
@@ -841,6 +863,81 @@ export class GameApp {
         }
       }
     }
+  }
+
+  _updateRadar() {
+    // Simple top-down radar per player.
+    const roomW = this.world.roomW;
+    const roomD = this.world.roomD;
+    const arcades = this.world.arcades;
+
+    const draw = (id, canvas, ctx) => {
+      if (!canvas || !ctx) return;
+      const self = this.players[id];
+      const other = this.players[id === 'p1' ? 'p2' : 'p1'];
+
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(0, 0, w, h);
+
+      const pad = 10;
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(pad, pad, w - pad * 2, h - pad * 2);
+
+      const toRadar = (pos) => {
+        const nx = (pos.x / (roomW / 2)) * 0.5 + 0.5;
+        const nz = (pos.z / (roomD / 2)) * 0.5 + 0.5;
+        const x = pad + nx * (w - pad * 2);
+        const y = pad + (1 - nz) * (h - pad * 2); // flip Z to screen Y
+        return { x, y };
+      };
+
+      // Task locations as '?'.
+      ctx.font = '900 16px ui-sans-serif, system-ui, Segoe UI, Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const a of arcades) {
+        const p = toRadar(a.position);
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.fillText('?', p.x, p.y);
+      }
+
+      // Other player dot.
+      {
+        const p = toRadar(other.pos);
+        ctx.fillStyle = id === 'p1' ? '#ff4fd7' : '#63b3ff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Self arrow (shows facing direction).
+      {
+        const p = toRadar(self.pos);
+        const yaw = self.yaw;
+        const dx = -Math.sin(yaw);
+        const dz = -Math.cos(yaw);
+        const ang = Math.atan2(-dz, dx); // map world forward to screen orientation
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(ang);
+        ctx.fillStyle = id === 'p1' ? '#63b3ff' : '#ff4fd7';
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-6, 5);
+        ctx.lineTo(-6, -5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    };
+
+    draw('p1', this._ui.p1.radar, this._ui.p1.radarCtx);
+    draw('p2', this._ui.p2.radar, this._ui.p2.radarCtx);
   }
 
   _weaponHudText(playerId, w) {
