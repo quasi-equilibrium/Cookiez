@@ -256,6 +256,36 @@ body {
   transform: translate(-50%, -50%);
 }
 
+.kill-pop {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  font-size: 34px;
+  font-weight: 1000;
+  opacity: 0;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.6));
+  color: #ff2b2b;
+  pointer-events: none;
+}
+.kill-pop.show {
+  animation: killPop 0.95s ease forwards;
+}
+@keyframes killPop {
+  0% {
+    transform: translateX(-50%) translateY(12px) scale(0.85) rotate(-10deg);
+    opacity: 0;
+  }
+  18% {
+    transform: translateX(-50%) translateY(0px) scale(1.15) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-10px) scale(0.98) rotate(0deg);
+    opacity: 0;
+  }
+}
+
 .scope-overlay {
   position: absolute;
   inset: 0;
