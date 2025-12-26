@@ -21,10 +21,12 @@
 
         <!-- Global inventory (bottom-left) -->
         <div id="inventory" class="inventory hidden">
-          <div class="bag">🎒</div>
-          <button id="inv-item" class="inv-item hidden" title="Weather item"></button>
-          <button id="inv-select" class="inv-select hidden">SEÇ</button>
-          <div id="inv-check" class="inv-check hidden">✓</div>
+          <div class="bag" aria-hidden="true"></div>
+          <div class="inv-slot">
+            <button id="inv-item" class="inv-item" type="button" aria-label="Hava durumu eşyası" title="Hava durumu"></button>
+            <button id="inv-select" class="inv-select hidden" type="button">SEÇ</button>
+            <div id="inv-check" class="inv-check hidden" aria-hidden="true">✓</div>
+          </div>
         </div>
 
         <div id="win-screen" class="win-screen hidden">

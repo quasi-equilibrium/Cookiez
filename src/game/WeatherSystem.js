@@ -39,6 +39,9 @@ export class WeatherSystem {
     // Inventory UI.
     this.ui.invItem?.addEventListener('click', () => {
       // Show select button for current item.
+      if (!this.inventoryItem) return;
+      // If already selected, do nothing.
+      if (this.selected === this.inventoryItem) return;
       this.ui.invSelect?.classList.toggle('hidden', false);
     });
     this.ui.invSelect?.addEventListener('click', () => {
@@ -144,15 +147,23 @@ export class WeatherSystem {
     // Inventory visibility.
     if (this.ui.inventory) this.ui.inventory.classList.remove('hidden');
 
+    // Item slot always visible; show placeholder if empty.
     if (!this.inventoryItem) {
-      this.ui.invItem?.classList.add('hidden');
+      if (this.ui.invItem) {
+        this.ui.invItem.textContent = '';
+        this.ui.invItem.dataset.weather = '';
+        this.ui.invItem.classList.add('empty');
+      }
       this.ui.invSelect?.classList.add('hidden');
       this.ui.invCheck?.classList.add('hidden');
       return;
     }
 
-    this.ui.invItem?.classList.remove('hidden');
-    if (this.ui.invItem) this.ui.invItem.textContent = this.inventoryItem.slice(0, 2).toUpperCase();
+    if (this.ui.invItem) {
+      this.ui.invItem.textContent = '';
+      this.ui.invItem.dataset.weather = this.inventoryItem;
+      this.ui.invItem.classList.remove('empty');
+    }
 
     // Checkmark if selected.
     const sel = this.selected === this.inventoryItem;

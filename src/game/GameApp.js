@@ -259,8 +259,10 @@ export class GameApp {
     // Keep the menu DOM alive because it owns the fade overlay.
     if (isMenu) {
       this._ui.menu.classList.remove('in-game');
+      document.body.classList.add('menu-mode');
     } else {
       this._ui.menu.classList.add('in-game');
+      document.body.classList.remove('menu-mode');
     }
   }
 
