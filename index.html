@@ -29,7 +29,7 @@
               <div class="controls-col">
                 <div class="controls-col-title">Player 1 (Left)</div>
                 <div>Move: <b>WASD</b></div>
-                <div>Look: <b>Q/F/T/G</b></div>
+                <div>Look: <b>Q/H/T/G</b></div>
                 <div>Jump: <b>Space</b></div>
                 <div>Use arcade: <b>E</b></div>
                 <div>Reload: <b>R</b></div>
@@ -46,7 +46,7 @@
               </div>
             </div>
             <div class="controls-foot">
-              <div>Toggle help: <b>H</b></div>
+              <div>Toggle help: <b>P</b></div>
               <div style="margin-top:8px;">
                 Mouse Fire:
                 <select id="mouse-fire-live">
@@ -64,6 +64,7 @@
         <div class="prompt" id="p1-prompt"></div>
         <div class="invuln" id="p1-invuln"></div>
         <div class="weapon" id="p1-weapon"></div>
+        <canvas id="p1-radar" class="radar radar-left" width="160" height="160"></canvas>
         <div class="hp-bar-wrap left">
           <div class="hp-label">P1 HP</div>
           <div class="hp-bar"><div class="hp-fill" id="p1-hp"></div></div>
@@ -74,6 +75,7 @@
         <div class="prompt" id="p2-prompt"></div>
         <div class="invuln" id="p2-invuln"></div>
         <div class="weapon" id="p2-weapon"></div>
+        <canvas id="p2-radar" class="radar radar-right" width="160" height="160"></canvas>
         <div class="hp-bar-wrap right">
           <div class="hp-label">P2 HP</div>
           <div class="hp-bar"><div class="hp-fill" id="p2-hp"></div></div>
@@ -104,7 +106,7 @@
                 <option value="both">Both</option>
               </select>
             </label>
-            <div class="hint">Press <b>H</b> for controls help.</div>
+            <div class="hint">Press <b>P</b> for controls help.</div>
           </div>
         </div>
 
