@@ -70,6 +70,65 @@ body {
   letter-spacing: 0.5px;
 }
 
+.weather-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 1000;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+}
+
+.inventory {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: auto;
+}
+.inventory .bag {
+  font-size: 18px;
+  opacity: 0.95;
+}
+.inv-item {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  color: #fff;
+  font-weight: 1000;
+}
+.inv-select {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-weight: 1000;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.inv-check {
+  font-weight: 1000;
+  color: #37e6a1;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 230, 161, 0.35);
+  background: rgba(55, 230, 161, 0.1);
+}
+
 .center-msg {
   position: absolute;
   top: 50%;
@@ -330,6 +389,136 @@ body {
 .menu.in-game .menu-center {
   display: none;
 }
+
+.pack-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  width: 92px;
+  height: 92px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 18px rgba(120, 200, 255, 0.12);
+}
+.pack-mini {
+  position: relative;
+  width: 58px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
+.pack-mini-label {
+  font-size: 12px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  margin-top: 6px;
+}
+
+.pack-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+.pack-modal {
+  width: min(520px, calc(100% - 48px));
+  background: rgba(5, 10, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 16px;
+  color: #eaf2ff;
+}
+.pack-title {
+  font-weight: 1000;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.pack-big {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  place-items: center;
+  cursor: pointer;
+  user-select: none;
+  animation: packFloat 1.6s ease-in-out infinite;
+}
+@keyframes packFloat {
+  0% { transform: translateY(0px) rotate(-0.5deg); }
+  50% { transform: translateY(-6px) rotate(0.6deg); }
+  100% { transform: translateY(0px) rotate(-0.5deg); }
+}
+.pack-big.opened {
+  animation: packTear 0.6s ease forwards;
+}
+@keyframes packTear {
+  0% { transform: scale(1) rotate(0deg); }
+  70% { transform: scale(1.06) rotate(-6deg); }
+  100% { transform: scale(0.92) rotate(10deg); opacity: 0.25; }
+}
+.pack-art {
+  position: relative;
+  width: 260px;
+  height: 150px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99,179,255,0.18), rgba(255,79,215,0.14));
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.pack-text {
+  font-weight: 1000;
+  letter-spacing: 2px;
+  opacity: 0.95;
+}
+.pack-result {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 10px;
+  place-items: center;
+}
+.pack-result-title {
+  font-weight: 1000;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+.pack-result-item {
+  font-weight: 1000;
+  font-size: 26px;
+  letter-spacing: 2px;
+}
+
+/* Icons drawn with CSS (no images needed) */
+.icon {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+}
+.pack-mini .icon.sun { left: 6px; top: 6px; background: radial-gradient(circle at 30% 30%, #fff5a6, #ffb13b); }
+.pack-mini .icon.cloud { right: 6px; top: 6px; background: radial-gradient(circle at 30% 30%, #eaf2ff, #9fb2c9); }
+.pack-mini .icon.bolt { left: 6px; bottom: 6px; background: radial-gradient(circle at 30% 30%, #eaf2ff, #63b3ff); }
+.pack-mini .icon.volcano { right: 6px; bottom: 6px; background: radial-gradient(circle at 30% 30%, #ff8a5a, #ff3333); }
+
+.pack-art .icon.sun { left: 30px; top: 30px; width: 40px; height: 40px; background: radial-gradient(circle at 30% 30%, #fff5a6, #ffb13b); }
+.pack-art .icon.cloud { right: 34px; top: 34px; width: 44px; height: 34px; border-radius: 18px; background: linear-gradient(#eaf2ff, #9fb2c9); }
+.pack-art .icon.bolt { left: 115px; top: 58px; width: 34px; height: 34px; background: radial-gradient(circle at 30% 30%, #eaf2ff, #63b3ff); }
+.pack-art .icon.volcano { right: 120px; bottom: 24px; width: 46px; height: 46px; background: radial-gradient(circle at 30% 30%, #ff8a5a, #ff3333); }
 .menu-center {
   text-align: center;
   color: #fff;

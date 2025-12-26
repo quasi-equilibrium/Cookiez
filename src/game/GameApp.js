@@ -7,6 +7,7 @@ import { WeaponState, WeaponType, damageForWeapon, weaponForTaskLevel } from './
 import { TaskSystem } from './TaskSystem.js';
 import { WeaponView } from './WeaponView.js';
 import { DemoBots } from './DemoBots.js';
+import { WeatherSystem } from './WeatherSystem.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
@@ -85,6 +86,8 @@ export class GameApp {
     this._stepT = { p1: 0, p2: 0 };
 
     this._ui = this._bindUI();
+    this.weather = new WeatherSystem({ ui: this._ui, world: this.world, audio: this.audio });
+    this.weather.mount();
 
     this.taskSystem = new TaskSystem({
       input: this.input,
@@ -138,6 +141,19 @@ export class GameApp {
 
       controlsHelp: document.getElementById('controls-help'),
       buildTag: document.getElementById('build-tag'),
+      weatherPill: document.getElementById('weather-pill'),
+
+      inventory: document.getElementById('inventory'),
+      invItem: document.getElementById('inv-item'),
+      invSelect: document.getElementById('inv-select'),
+      invCheck: document.getElementById('inv-check'),
+
+      packBtn: document.getElementById('pack-btn'),
+      packOverlay: document.getElementById('pack-overlay'),
+      packBig: document.getElementById('pack-big'),
+      packResult: document.getElementById('pack-result'),
+      packResultItem: document.getElementById('pack-result-item'),
+      packClose: document.getElementById('pack-close'),
 
       p1: {
         hud: document.getElementById('hud-p1'),
@@ -298,6 +314,9 @@ export class GameApp {
     this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.18, fallback: null });
     // Extra elevator hum layer (stops when doors fully open / fight starts).
     this.audio.startLoop('elevator', 'elevatorHum', { volume: 0.55 });
+
+    // Apply selected weather visuals at match start.
+    this.weather.applyToWorld();
   }
 
   _resetRound() {
@@ -365,6 +384,9 @@ export class GameApp {
     } else {
       this.demoBots.setEnabled(false);
     }
+
+    // Weather animation (lightning flashes) during gameplay only.
+    this.weather.update(dt, this.state === 'ELEVATOR' || this.state === 'PLAY');
 
     // Global key: ESC leaves pointer lock by browser default.
     // Toggle tasks:
