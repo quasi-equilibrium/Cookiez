@@ -46,16 +46,21 @@ export class World {
       p1: this._displayCanvas.p1.getContext('2d'),
       p2: this._displayCanvas.p2.getContext('2d')
     };
+
+    // Lights (stored so WeatherSystem can tint them).
+    this.lights = { ambient: null, hemi: null, key: null };
   }
 
   build() {
     const scene = this.scene;
 
     // Lighting: general + neon-ish accents.
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-    const hemi = new THREE.HemisphereLight(0x9ecbff, 0x2a1b12, 0.45);
-    scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 0.65);
+    this.lights.ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    scene.add(this.lights.ambient);
+    this.lights.hemi = new THREE.HemisphereLight(0x9ecbff, 0x2a1b12, 0.45);
+    scene.add(this.lights.hemi);
+    this.lights.key = new THREE.DirectionalLight(0xffffff, 0.65);
+    const key = this.lights.key;
     key.position.set(15, 22, 8);
     key.castShadow = false;
     scene.add(key);
@@ -158,6 +163,14 @@ export class World {
         this.fx.splice(i, 1);
       }
     }
+  }
+
+  setLighting({ ambient, hemi, key, tint }) {
+    // Safe no-op if called before build.
+    if (this.lights.ambient) this.lights.ambient.intensity = ambient;
+    if (this.lights.hemi) this.lights.hemi.intensity = hemi;
+    if (this.lights.key) this.lights.key.intensity = key;
+    if (tint && this.lights.key) this.lights.key.color.setHex(tint);
   }
 
   _buildSpawnPoints(roomW, roomD) {

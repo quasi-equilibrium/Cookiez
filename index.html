@@ -17,6 +17,15 @@
         <div id="scoreboard" class="scoreboard hidden">P1: 0 | P2: 0</div>
         <div id="split-bar" class="split-bar hidden"></div>
         <div id="center-msg" class="center-msg hidden">FIGHT</div>
+        <div id="weather-pill" class="weather-pill hidden">WEATHER: SUN</div>
+
+        <!-- Global inventory (bottom-left) -->
+        <div id="inventory" class="inventory hidden">
+          <div class="bag">🎒</div>
+          <button id="inv-item" class="inv-item hidden" title="Weather item"></button>
+          <button id="inv-select" class="inv-select hidden">SEÇ</button>
+          <div id="inv-check" class="inv-check hidden">✓</div>
+        </div>
 
         <div id="win-screen" class="win-screen hidden">
           <div class="win-title" id="win-title">P1 WINS</div>
@@ -118,6 +127,37 @@
               </select>
             </label>
             <div class="hint">Press <b>P</b> for controls help.</div>
+          </div>
+        </div>
+
+        <!-- Weather pack UI (menu only) -->
+        <div id="pack-btn" class="pack-btn" title="Open weather pack">
+          <div class="pack-mini">
+            <div class="icon sun"></div>
+            <div class="icon cloud"></div>
+            <div class="icon bolt"></div>
+            <div class="icon volcano"></div>
+          </div>
+          <div class="pack-mini-label">PACK</div>
+        </div>
+
+        <div id="pack-overlay" class="pack-overlay hidden">
+          <div class="pack-modal">
+            <div class="pack-title">Weather Pack</div>
+            <div id="pack-big" class="pack-big">
+              <div class="pack-art">
+                <div class="icon sun"></div>
+                <div class="icon cloud"></div>
+                <div class="icon bolt"></div>
+                <div class="icon volcano"></div>
+              </div>
+              <div class="pack-text">CLICK TO OPEN</div>
+            </div>
+            <div id="pack-result" class="pack-result hidden">
+              <div class="pack-result-title">YOU GOT</div>
+              <div id="pack-result-item" class="pack-result-item">SUN</div>
+              <button id="pack-close" class="btn">Close</button>
+            </div>
           </div>
         </div>
 
