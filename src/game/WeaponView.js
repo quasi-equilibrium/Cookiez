@@ -62,6 +62,19 @@ export class WeaponView {
     this._knifeSwing = 0; // 0..1
     this._knifeSwingVel = 0;
 
+    // Knife trail (exaggerated slash effect).
+    const trailGeo = new THREE.PlaneGeometry(0.5, 0.22);
+    const trailMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    this.knifeTrail = new THREE.Mesh(trailGeo, trailMat);
+    this.knifeTrail.visible = false;
+    this.root.add(this.knifeTrail);
+
     // Vandal color cycling.
     this._t = 0;
     this._vandalPalette = [0x6f7a8a, 0xdfe7f2, 0x63b3ff, 0x37e6a1];
@@ -159,16 +172,28 @@ export class WeaponView {
       const k = this.models[WeaponType.KNIFE];
       this._knifeSwing = Math.max(0, this._knifeSwing - dt * 2.6);
       const s = this._knifeSwing;
-      // Simple slash: rotate + slight forward jab.
-      k.rotation.x = -0.2 - s * 1.1;
-      k.rotation.z = 0.4 + s * 1.1;
-      k.position.z = -0.2 - s * 0.25;
-      k.position.y = -0.02 - s * 0.05;
+      // Exaggerated right->left slash (screen space): move X and rotate Y/Z.
+      k.rotation.x = -0.15 - s * 0.9;
+      k.rotation.y = -0.3 + s * 1.2;
+      k.rotation.z = 0.8 - s * 2.1;
+      k.position.x = 0.18 - s * 0.38;
+      k.position.z = -0.18 - s * 0.18;
+      k.position.y = -0.02 - s * 0.10;
+
+      // Trail visible during swing.
+      this.knifeTrail.visible = s > 0.02;
+      if (this.knifeTrail.visible) {
+        this.knifeTrail.position.set(0.16 - s * 0.25, 0.06, -0.32);
+        this.knifeTrail.rotation.set(0, 0, -0.6);
+        this.knifeTrail.material.color.setHex(0xffb13b);
+        this.knifeTrail.material.opacity = Math.min(0.9, s * 1.8);
+      }
     } else {
       // Reset knife pose when not active.
       const k = this.models[WeaponType.KNIFE];
       k.rotation.set(0, 0, 0);
       k.position.set(0, 0, 0);
+      this.knifeTrail.visible = false;
     }
 
     // Vandal “always changing color” (grey/white/blue/green).

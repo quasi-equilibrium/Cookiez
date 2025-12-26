@@ -268,6 +268,65 @@ export class World {
       color: 0x3a2a1e,
       tag: 'prop'
     });
+
+    // Extra cover/decoration requested:
+    // - long panels (panolar)
+    // - boxes (kutular)
+    // - spikes/skewers (şişler)
+    // - tables (masalar)
+    // - long flags/banners (uzun flamalar)
+    for (let i = 0; i < 10; i++) {
+      this._addBoxProp({
+        size: new THREE.Vector3(randRange(6, 14), randRange(1.6, 2.6), 0.6),
+        pos: new THREE.Vector3(randRange(-roomW / 2 + 24, roomW / 2 - 24), 0.9, randRange(-roomD / 2 + 18, roomD / 2 - 18)),
+        color: 0x2a3244,
+        tag: 'prop'
+      });
+    }
+    for (let i = 0; i < 16; i++) {
+      this._addBoxProp({
+        size: new THREE.Vector3(randRange(1.2, 2.6), randRange(0.8, 1.6), randRange(1.2, 2.6)),
+        pos: new THREE.Vector3(randRange(-roomW / 2 + 20, roomW / 2 - 20), 0.6, randRange(-roomD / 2 + 16, roomD / 2 - 16)),
+        color: 0x3a2a1e,
+        tag: 'prop'
+      });
+    }
+    // Tables (long and low).
+    for (let i = 0; i < 8; i++) {
+      this._addBoxProp({
+        size: new THREE.Vector3(randRange(3.8, 6.8), 1.0, randRange(1.2, 2.2)),
+        pos: new THREE.Vector3(randRange(-roomW / 2 + 22, roomW / 2 - 22), 0.5, randRange(-roomD / 2 + 18, roomD / 2 - 18)),
+        color: 0x2b3b55,
+        tag: 'prop'
+      });
+    }
+    // Spikes/skewers (decor, not colliders to avoid annoying gameplay).
+    for (let i = 0; i < 30; i++) {
+      const spike = new THREE.Mesh(
+        new THREE.ConeGeometry(0.12, randRange(0.8, 1.6), 8),
+        new THREE.MeshStandardMaterial({ color: 0x9099a8, roughness: 0.25, metalness: 0.7 })
+      );
+      spike.position.set(randRange(-roomW / 2 + 18, roomW / 2 - 18), 0.4, randRange(-roomD / 2 + 14, roomD / 2 - 14));
+      this.scene.add(spike);
+      // no collider
+    }
+    // Banners: thin emissive planes.
+    for (let i = 0; i < 10; i++) {
+      const banner = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.8, randRange(6, 10)),
+        new THREE.MeshStandardMaterial({
+          color: 0x0a0f1a,
+          emissive: Math.random() < 0.5 ? 0x34a2ff : 0xff4fd7,
+          emissiveIntensity: 1.6,
+          side: THREE.DoubleSide,
+          roughness: 0.4,
+          metalness: 0.1
+        })
+      );
+      banner.position.set(randRange(-roomW / 2 + 10, roomW / 2 - 10), 4.2, randRange(-roomD / 2 + 10, roomD / 2 - 10));
+      banner.rotation.y = randRange(-Math.PI, Math.PI);
+      this.scene.add(banner);
+    }
   }
 
   _addElevators() {
