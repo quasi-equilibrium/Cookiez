@@ -290,6 +290,57 @@ export class AudioManager {
       g.gain.linearRampToValueAtTime(volume * 0.22, this.ctx.currentTime + 0.15);
       return;
     }
+
+    if (type === 'fireCrackle') {
+      // Simple crackle loop (noise-like) made from short square bursts.
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 180;
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1200;
+      bp.Q.value = 0.7;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      osc.connect(bp);
+      bp.connect(g);
+      g.connect(this.master);
+      osc.start();
+
+      let alive = true;
+      const interval = setInterval(() => {
+        if (!this.ctx || !alive) return;
+        const t = this.ctx.currentTime;
+        // Random little bursts.
+        const bursts = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < bursts; i++) {
+          const tt = t + i * 0.08 + Math.random() * 0.03;
+          osc.frequency.setValueAtTime(120 + Math.random() * 220, tt);
+          bp.frequency.setValueAtTime(900 + Math.random() * 900, tt);
+          g.gain.cancelScheduledValues(tt);
+          g.gain.setValueAtTime(0, tt);
+          g.gain.linearRampToValueAtTime(volume * 0.12, tt + 0.01);
+          g.gain.linearRampToValueAtTime(0, tt + 0.06);
+        }
+      }, 240);
+
+      this._loops.set(key, {
+        stop: (fadeMs = 120) => {
+          alive = false;
+          clearInterval(interval);
+          try {
+            const t = this.ctx?.currentTime ?? 0;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            osc.stop(t + fadeMs / 1000 + 0.02);
+          } catch {
+            // ignore
+          }
+        }
+      });
+      return;
+    }
   }
 
   stopLoop(key) {
@@ -433,6 +484,23 @@ export class AudioManager {
       g.connect(this.master);
       osc.start(t);
       osc.stop(t + 0.24);
+      return;
+    }
+
+    if (type === 'explosion') {
+      // Short boom: low sine drop + clicky edge.
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.exponentialRampToValueAtTime(35, t + 0.22);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(volume * 0.55, t + 0.01);
+      g.gain.linearRampToValueAtTime(0, t + 0.26);
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.28);
       return;
     }
   }

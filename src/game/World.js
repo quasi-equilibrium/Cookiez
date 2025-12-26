@@ -23,6 +23,15 @@ export class World {
     /** @type {Array<{id:number, taskIndex:number, position:THREE.Vector3}>} */
     this.arcades = [];
 
+    /** @type {Array<{id:number, mesh:THREE.Mesh, collider:any, exploded:boolean}>} */
+    this.barrels = [];
+
+    /** @type {Array<{id:number, mesh:THREE.Mesh, light:THREE.Light, box:THREE.Box3, t:number}>} */
+    this.fireBlocks = [];
+
+    /** @type {Array<{mesh:THREE.Mesh, t:number, maxT:number}>} */
+    this.fx = [];
+
     this.elevators = {
       // Anchors will be recomputed from room size in build().
       p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
@@ -115,6 +124,40 @@ export class World {
     this._addArcadesAndProps(roomW, roomD);
     this._addElevators();
     this._buildSpawnPoints(roomW, roomD);
+  }
+
+  update(dt) {
+    // Update fire flicker + lifetime.
+    for (let i = this.fireBlocks.length - 1; i >= 0; i--) {
+      const f = this.fireBlocks[i];
+      f.t -= dt;
+      // Flicker emissive + light.
+      const flick = 0.65 + Math.random() * 0.6;
+      f.mesh.material.emissiveIntensity = flick * 1.6;
+      if (f.light) f.light.intensity = flick * 2.0;
+
+      if (f.t <= 0) {
+        this.scene.remove(f.mesh);
+        if (f.light) this.scene.remove(f.light);
+        this.fireBlocks.splice(i, 1);
+      } else {
+        f.mesh.updateMatrixWorld(true);
+        f.box.setFromObject(f.mesh);
+      }
+    }
+
+    // Update one-shot FX.
+    for (let i = this.fx.length - 1; i >= 0; i--) {
+      const fx = this.fx[i];
+      fx.t -= dt;
+      const k = 1 - fx.t / fx.maxT;
+      fx.mesh.scale.setScalar(0.6 + k * 2.2);
+      fx.mesh.material.opacity = Math.max(0, 1 - k);
+      if (fx.t <= 0) {
+        this.scene.remove(fx.mesh);
+        this.fx.splice(i, 1);
+      }
+    }
   }
 
   _buildSpawnPoints(roomW, roomD) {
@@ -327,6 +370,128 @@ export class World {
       banner.rotation.y = randRange(-Math.PI, Math.PI);
       this.scene.add(banner);
     }
+
+    // Explosive barrels: lots around the arena.
+    this._addBarrels(roomW, roomD, 26);
+  }
+
+  _addBarrels(roomW, roomD, count) {
+    this.barrels.length = 0;
+    const spots = [];
+    const pickSpot = () => {
+      const marginX = 16;
+      const marginZ = 14;
+      for (let tries = 0; tries < 150; tries++) {
+        const x = randRange(-roomW / 2 + marginX, roomW / 2 - marginX);
+        const z = randRange(-roomD / 2 + marginZ, roomD / 2 - marginZ);
+        // Keep away from elevators.
+        if (Math.abs(x) > roomW / 2 - 30 && Math.abs(z) < 16) continue;
+        // Keep away from task arcades so they aren't blocked.
+        const nearTask = this.arcades.some((a) => (a.position.x - x) ** 2 + (a.position.z - z) ** 2 < 8 * 8);
+        if (nearTask) continue;
+        const ok = spots.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > 6 * 6);
+        if (!ok) continue;
+        const v = new THREE.Vector3(x, 0, z);
+        spots.push(v);
+        return v;
+      }
+      return new THREE.Vector3(0, 0, 0);
+    };
+
+    const bodyGeo = new THREE.CylinderGeometry(0.45, 0.45, 1.0, 16, 1, false);
+    const ringGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.08, 16);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x2d67ff,
+      roughness: 0.6,
+      metalness: 0.25,
+      emissive: 0x000000
+    });
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0x182033,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+
+    for (let i = 0; i < count; i++) {
+      const p = pickSpot();
+      const barrel = new THREE.Group();
+      const body = new THREE.Mesh(bodyGeo, mat.clone());
+      body.position.y = 0.5;
+      const r1 = new THREE.Mesh(ringGeo, ringMat);
+      r1.position.y = 0.22;
+      const r2 = new THREE.Mesh(ringGeo, ringMat);
+      r2.position.y = 0.78;
+      barrel.add(body, r1, r2);
+      barrel.position.set(p.x, 0, p.z);
+      barrel.rotation.y = randRange(-Math.PI, Math.PI);
+      this.scene.add(barrel);
+
+      // Collider + raycast on body mesh.
+      body.userData.isBarrel = true;
+      body.userData.barrelId = i;
+      this._addColliderFromMesh(body, 'barrel');
+      const collider = this.colliders[this.colliders.length - 1];
+
+      this.barrels.push({ id: i, mesh: barrel, collider, exploded: false });
+    }
+  }
+
+  explodeBarrel(id) {
+    const b = this.barrels[id];
+    if (!b || b.exploded) return null;
+    b.exploded = true;
+    b.mesh.visible = false;
+    if (b.collider) b.collider.disabled = true;
+
+    const pos = b.mesh.position.clone();
+
+    // Explosion visual (quick expanding sphere).
+    const fx = new THREE.Mesh(
+      new THREE.SphereGeometry(0.6, 10, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffb13b,
+        transparent: true,
+        opacity: 1,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    fx.position.set(pos.x, 0.7, pos.z);
+    this.scene.add(fx);
+    this.fx.push({ mesh: fx, t: 0.35, maxT: 0.35 });
+
+    // Spawn 4 fire blocks on the ground.
+    const offsets = [
+      new THREE.Vector3(1.3, 0, 0),
+      new THREE.Vector3(-1.3, 0, 0),
+      new THREE.Vector3(0, 0, 1.3),
+      new THREE.Vector3(0, 0, -1.3)
+    ];
+    for (const o of offsets) {
+      this._spawnFireBlock(pos.x + o.x, pos.z + o.z);
+    }
+
+    return pos;
+  }
+
+  _spawnFireBlock(x, z) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x2a1a06,
+      emissive: 0xff9a2f,
+      emissiveIntensity: 1.6,
+      roughness: 0.7,
+      metalness: 0.0
+    });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.9), mat);
+    mesh.position.set(x, 0.09, z);
+    this.scene.add(mesh);
+
+    const light = new THREE.PointLight(0xffa24a, 2.0, 6.0, 2.0);
+    light.position.set(x, 0.55, z);
+    this.scene.add(light);
+
+    const box = new THREE.Box3().setFromObject(mesh);
+    this.fireBlocks.push({ id: this.fireBlocks.length, mesh, light, box, t: 14.0 });
   }
 
   _addElevators() {

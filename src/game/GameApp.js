@@ -539,6 +539,9 @@ export class GameApp {
     this._updateMovement('p1', dt);
     this._updateMovement('p2', dt);
 
+    // Fire hazards (from exploded barrels).
+    this._updateHazards(dt);
+
     // Footsteps (placeholder synth if no asset).
     this._updateFootsteps(dt);
 
@@ -557,6 +560,48 @@ export class GameApp {
     // Weapon visuals (first-person models + fx).
     this.weaponViews.p1.update(dt, { weaponType: this.weapons.p1.type, sniperZoom01: this.weapons.p1.sniperZoom01 });
     this.weaponViews.p2.update(dt, { weaponType: this.weapons.p2.type, sniperZoom01: this.weapons.p2.sniperZoom01 });
+  }
+
+  _updateHazards(dt) {
+    // Update hazard visuals/lifetimes.
+    this.world.update(dt);
+
+    // Damage: 25 HP per second while touching a fire block.
+    const dps = 25;
+    const fires = this.world.fireBlocks;
+    const anyNear =
+      fires.length &&
+      (this._isAnyPlayerNearFire(this.players.p1, fires) || this._isAnyPlayerNearFire(this.players.p2, fires));
+
+    // Fire crackle loop if any player is near any fire.
+    if (anyNear) this.audio.startLoop('fire', 'fireCrackle', { volume: 0.12 });
+    else this.audio.stopLoop('fire');
+
+    for (const id of ['p1', 'p2']) {
+      const p = this.players[id];
+      if (p.dead) continue;
+      // Simple AABB overlap against fire boxes using player radius.
+      for (const f of fires) {
+        const b = f.box;
+        const px = p.pos.x;
+        const pz = p.pos.z;
+        const withinX = px >= b.min.x - PLAYER_RADIUS && px <= b.max.x + PLAYER_RADIUS;
+        const withinZ = pz >= b.min.z - PLAYER_RADIUS && pz <= b.max.z + PLAYER_RADIUS;
+        if (withinX && withinZ) {
+          p.takeDamage(dps * dt);
+        }
+      }
+    }
+  }
+
+  _isAnyPlayerNearFire(player, fires) {
+    const r2 = 7.5 * 7.5;
+    for (const f of fires) {
+      const dx = f.mesh.position.x - player.pos.x;
+      const dz = f.mesh.position.z - player.pos.z;
+      if (dx * dx + dz * dz <= r2) return true;
+    }
+    return false;
   }
 
   _maybeRespawn(deadId, enemyId) {
@@ -847,7 +892,10 @@ export class GameApp {
     this.weaponViews[shooterId].triggerShot({ weaponType: w.type });
     this.weaponViews[shooterId].showTracer({ weaponType: w.type, origin, end });
 
-    if (hit && hit.object === target.hitbox) {
+    if (hit?.object?.userData?.isBarrel) {
+      const pos = this.world.explodeBarrel(hit.object.userData.barrelId);
+      if (pos) this.audio.playOneShot(assetUrl('assets/audio/sfx/explosion.ogg'), { volume: 0.8, fallback: 'explosion' });
+    } else if (hit && hit.object === target.hitbox) {
       const dmg = damageForWeapon(w.type);
       const died = target.takeDamage(dmg);
       if (died) this._onKill(shooterId, targetId);
@@ -872,8 +920,14 @@ export class GameApp {
 
     this._raycaster.set(origin, dir);
     this._raycaster.far = 2.0;
-    const hits = this._raycaster.intersectObject(target.hitbox, false);
-    if (hits.length) {
+    const hits = this._raycaster.intersectObjects([target.hitbox, ...this.world.raycastMeshes], true);
+    const hit = hits[0];
+    if (hit?.object?.userData?.isBarrel) {
+      this.weaponViews[shooterId].triggerKnifeHitSwing();
+      const pos = this.world.explodeBarrel(hit.object.userData.barrelId);
+      if (pos) this.audio.playOneShot(assetUrl('assets/audio/sfx/explosion.ogg'), { volume: 0.8, fallback: 'explosion' });
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6, fallback: 'pistol' });
+    } else if (hit && hit.object === target.hitbox) {
       this.weaponViews[shooterId].triggerKnifeHitSwing();
       const died = target.takeDamage(damageForWeapon(WeaponType.KNIFE));
       if (died) this._onKill(shooterId, targetId);
