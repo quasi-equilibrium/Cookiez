@@ -309,6 +309,8 @@ export class World {
 
       this._addColliderFromMesh(door, 'elevatorDoor');
       const doorCollider = this.colliders[this.colliders.length - 1];
+      // Used for right-to-left sliding direction in setElevatorDoorOpen().
+      door.userData.slideZDir = key === 'p1' ? 1 : -1;
 
       // Collision: the visible "frame" mesh is a solid cube (placeholder), so we DO NOT use it
       // for collision. Instead we add invisible wall colliders so players can stand inside.
@@ -384,9 +386,13 @@ export class World {
   setElevatorDoorOpen(key, open01) {
     // open01: 0 = closed, 1 = open
     const e = this.elevators[key];
-    const dir = key === 'p1' ? 1 : -1;
-    // Slide door outwards (towards outside wall) a bit to "open" the doorway.
-    e.doorMesh.position.x = e.anchor.x + dir * (2.55 + open01 * 1.8);
+    // Door behavior: slide RIGHT -> LEFT relative to the player's view.
+    // P1 looks +X, so "left" is +Z. P2 looks -X, so "left" is -Z.
+    // So we slide along Z with opposite directions per elevator.
+    const zDir = e.doorMesh.userData.slideZDir ?? (key === 'p1' ? 1 : -1);
+    // Keep door in doorway plane (X fixed) and slide along Z to open.
+    e.doorMesh.position.x = e.anchor.x + (key === 'p1' ? 1 : -1) * 2.55;
+    e.doorMesh.position.z = e.anchor.z + zDir * (open01 * 2.2);
     // Disable collider when mostly open.
     if (e.doorCollider) {
       // Update collider to match animated door.

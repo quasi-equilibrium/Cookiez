@@ -62,7 +62,8 @@ export class GameApp {
       t: 10,
       doorOpen01: 0,
       fightMsgTimer: 0,
-      _lastShownInt: 10
+      _lastShownInt: 10,
+      doorSfxPlayed: false
     };
 
     this.scores = { p1: 0, p2: 0 };
@@ -270,6 +271,7 @@ export class GameApp {
     this.elevator.doorOpen01 = 0;
     this.elevator.fightMsgTimer = 0;
     this.elevator._lastShownInt = 10;
+    this.elevator.doorSfxPlayed = false;
     this.world.setElevatorDoorOpen('p1', 0);
     this.world.setElevatorDoorOpen('p2', 0);
     this.world.setElevatorCabinAlpha('p1', 1);
@@ -282,7 +284,7 @@ export class GameApp {
 
     // Start ambient (optional; no crash if missing).
     this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.35, fallback: 'elevatorHum' });
-    // Extra elevator hum layer.
+    // Extra elevator hum layer (stops when doors fully open / fight starts).
     this.audio.startLoop('elevator', 'elevatorHum', { volume: 0.55 });
   }
 
@@ -374,6 +376,10 @@ export class GameApp {
       if (this.elevator.t <= 0) {
         // Animate door open.
         this.elevator.doorOpen01 = Math.min(1, this.elevator.doorOpen01 + dt * 1.2);
+        if (!this.elevator.doorSfxPlayed) {
+          this.elevator.doorSfxPlayed = true;
+          this.audio.playOneShot(assetUrl('assets/audio/sfx/elevator_door.ogg'), { volume: 0.7, fallback: 'elevatorDoor' });
+        }
         this.world.setElevatorDoorOpen('p1', this.elevator.doorOpen01);
         this.world.setElevatorDoorOpen('p2', this.elevator.doorOpen01);
         // Fade away the white cabin as doors open so the arena becomes visible.
@@ -389,6 +395,7 @@ export class GameApp {
         if (this.elevator.doorOpen01 >= 1 && this.elevator.fightMsgTimer <= 0) {
           this._ui.centerMsg.classList.add('hidden');
           this.state = 'PLAY';
+          this.audio.stopLoop('elevator');
         }
       }
     }

@@ -303,6 +303,24 @@ export class AudioManager {
         g.gain.linearRampToValueAtTime(0, tt + 0.06);
       });
       osc.stop(t + 0.26);
+      return;
+    }
+
+    if (type === 'elevatorDoor') {
+      // Short mechanical "thunk + slide" impression.
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(70, t + 0.18);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(volume * 0.18, t + 0.01);
+      g.gain.linearRampToValueAtTime(0, t + 0.22);
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.24);
+      return;
     }
   }
 }
