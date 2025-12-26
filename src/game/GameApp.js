@@ -5,6 +5,7 @@ import { World } from './World.js';
 import { Player, PLAYER_HEIGHT, PLAYER_RADIUS } from './Player.js';
 import { WeaponState, WeaponType, damageForWeapon, weaponForTaskLevel } from './Weapons.js';
 import { TaskSystem } from './TaskSystem.js';
+import { WeaponView } from './WeaponView.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
@@ -38,11 +39,22 @@ export class GameApp {
     };
     this.players.p1.addToScene(this.world.scene);
     this.players.p2.addToScene(this.world.scene);
+    // Add cameras to scene so camera-attached weapon models render.
+    this.world.scene.add(this.players.p1.camera);
+    this.world.scene.add(this.players.p2.camera);
 
     this.weapons = {
       p1: new WeaponState(),
       p2: new WeaponState()
     };
+
+    // First-person weapon visuals + FX.
+    this.weaponViews = {
+      p1: new WeaponView({ id: 'p1', scene: this.world.scene, camera: this.players.p1.camera }),
+      p2: new WeaponView({ id: 'p2', scene: this.world.scene, camera: this.players.p2.camera })
+    };
+    this.weaponViews.p1.attach();
+    this.weaponViews.p2.attach();
 
     // Spawn/elevator state.
     this.state = 'MENU'; // MENU -> TRANSITION -> ELEVATOR -> PLAY -> WIN
@@ -120,7 +132,8 @@ export class GameApp {
         hp: document.getElementById('p1-hp'),
         prompt: document.getElementById('p1-prompt'),
         invuln: document.getElementById('p1-invuln'),
-        weapon: document.getElementById('p1-weapon')
+        weapon: document.getElementById('p1-weapon'),
+        scope: document.getElementById('p1-scope')
       },
       p2: {
         hud: document.getElementById('hud-p2'),
@@ -128,7 +141,8 @@ export class GameApp {
         prompt: document.getElementById('p2-prompt'),
         invuln: document.getElementById('p2-invuln'),
         weapon: document.getElementById('p2-weapon'),
-        radar: document.getElementById('p2-radar')
+        radar: document.getElementById('p2-radar'),
+        scope: document.getElementById('p2-scope')
       }
     };
     ui.p1.radar = document.getElementById('p1-radar');
@@ -273,6 +287,8 @@ export class GameApp {
 
     this.weapons.p1.setWeapon(weaponForTaskLevel(this.players.p1.taskLevel));
     this.weapons.p2.setWeapon(weaponForTaskLevel(this.players.p2.taskLevel));
+    this.weaponViews.p1.setWeapon(this.weapons.p1.type);
+    this.weaponViews.p2.setWeapon(this.weapons.p2.type);
 
     // Place players somewhere safe for menu background.
     this.players.p1.respawnAt(new THREE.Vector3(-10, 0, 0));
@@ -294,6 +310,8 @@ export class GameApp {
     // Ensure correct weapon for current task progression.
     this.weapons.p1.setWeapon(weaponForTaskLevel(p1.taskLevel));
     this.weapons.p2.setWeapon(weaponForTaskLevel(p2.taskLevel));
+    this.weaponViews.p1.setWeapon(this.weapons.p1.type);
+    this.weaponViews.p2.setWeapon(this.weapons.p2.type);
   }
 
   _resize() {
@@ -426,6 +444,7 @@ export class GameApp {
     if (taskIndex !== p.taskLevel) return;
     p.taskLevel = clamp(p.taskLevel + 1, 0, 3);
     this.weapons[playerId].setWeapon(weaponForTaskLevel(p.taskLevel));
+    this.weaponViews[playerId].setWeapon(this.weapons[playerId].type);
   }
 
   _nearestArcade(player) {
@@ -483,6 +502,10 @@ export class GameApp {
     // Sniper camera FOV zoom blending.
     this._applySniperZoom('p1');
     this._applySniperZoom('p2');
+
+    // Weapon visuals (first-person models + fx).
+    this.weaponViews.p1.update(dt, { weaponType: this.weapons.p1.type, sniperZoom01: this.weapons.p1.sniperZoom01 });
+    this.weaponViews.p2.update(dt, { weaponType: this.weapons.p2.type, sniperZoom01: this.weapons.p2.sniperZoom01 });
   }
 
   _maybeRespawn(deadId, enemyId) {
@@ -737,6 +760,14 @@ export class GameApp {
 
     const hits = this._raycaster.intersectObjects([target.hitbox, ...this.world.raycastMeshes], true);
     const hit = hits[0];
+    const end = this._tmpHitEnd ?? (this._tmpHitEnd = new THREE.Vector3());
+    if (hit) end.copy(hit.point);
+    else end.copy(origin).addScaledVector(dir, 120);
+
+    // Visual: muzzle flash + tracer
+    this.weaponViews[shooterId].triggerShot({ weaponType: w.type });
+    this.weaponViews[shooterId].showTracer({ weaponType: w.type, origin, end });
+
     if (hit && hit.object === target.hitbox) {
       const dmg = damageForWeapon(w.type);
       const died = target.takeDamage(dmg);
@@ -764,10 +795,12 @@ export class GameApp {
     this._raycaster.far = 2.0;
     const hits = this._raycaster.intersectObject(target.hitbox, false);
     if (hits.length) {
+      this.weaponViews[shooterId].triggerKnifeHitSwing();
       const died = target.takeDamage(damageForWeapon(WeaponType.KNIFE));
       if (died) this._onKill(shooterId, targetId);
       this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6 });
     } else {
+      this.weaponViews[shooterId].triggerKnifeWhiffSwing();
       this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.35 });
     }
     w.consumeShot();
@@ -834,6 +867,12 @@ export class GameApp {
     // Weapon HUD.
     this._ui.p1.weapon.textContent = this._weaponHudText('p1', w1);
     this._ui.p2.weapon.textContent = this._weaponHudText('p2', w2);
+
+    // Sniper scope overlay (per-player half only).
+    const scope1 = w1.type === WeaponType.SNIPER && (w1.sniperAiming || w1.sniperZoom01 > 0.65);
+    const scope2 = w2.type === WeaponType.SNIPER && (w2.sniperAiming || w2.sniperZoom01 > 0.65);
+    this._ui.p1.scope?.classList.toggle('hidden', !scope1);
+    this._ui.p2.scope?.classList.toggle('hidden', !scope2);
 
     // Prompts (only when not in task UI).
     this._ui.p1.prompt.textContent = '';
