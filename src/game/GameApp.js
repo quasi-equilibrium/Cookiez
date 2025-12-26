@@ -6,6 +6,7 @@ import { Player, PLAYER_HEIGHT, PLAYER_RADIUS } from './Player.js';
 import { WeaponState, WeaponType, damageForWeapon, weaponForTaskLevel } from './Weapons.js';
 import { TaskSystem } from './TaskSystem.js';
 import { WeaponView } from './WeaponView.js';
+import { DemoBots } from './DemoBots.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
@@ -32,6 +33,9 @@ export class GameApp {
 
     this.world = new World();
     this.world.build();
+    this.demoBots = new DemoBots({ scene: this.world.scene, roomW: this.world.roomW, roomD: this.world.roomD });
+    this.demoBots.build();
+    this.demoBots.setEnabled(true);
 
     this.players = {
       p1: new Player({ id: 'p1', color: 0x63b3ff }),
@@ -346,6 +350,14 @@ export class GameApp {
   }
 
   _update(dt) {
+    // Menu background demo (visual only).
+    if (this.state === 'MENU') {
+      this.demoBots.setEnabled(true);
+      this.demoBots.update(dt);
+    } else {
+      this.demoBots.setEnabled(false);
+    }
+
     // Global key: ESC leaves pointer lock by browser default.
     // Toggle tasks:
     if (this.state === 'ELEVATOR' || this.state === 'PLAY') {
@@ -379,6 +391,8 @@ export class GameApp {
         if (!this.elevator.doorSfxPlayed) {
           this.elevator.doorSfxPlayed = true;
           this.audio.playOneShot(assetUrl('assets/audio/sfx/elevator_door.ogg'), { volume: 0.7, fallback: 'elevatorDoor' });
+          // Elevator reached ground: stop hum immediately (user request).
+          this.audio.stopLoop('elevator');
         }
         this.world.setElevatorDoorOpen('p1', this.elevator.doorOpen01);
         this.world.setElevatorDoorOpen('p2', this.elevator.doorOpen01);
