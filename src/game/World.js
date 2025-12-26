@@ -8,8 +8,9 @@ export class World {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#05060a');
 
-    this.roomW = 80;
-    this.roomD = 40;
+    // Bigger arena (user request: "ciddi haritayı bayağı büyüt").
+    this.roomW = 170;
+    this.roomD = 90;
 
     /** @type {Array<{box:THREE.Box3, tag:string}>} */
     this.colliders = [];
@@ -23,6 +24,7 @@ export class World {
     this.arcades = [];
 
     this.elevators = {
+      // Anchors will be recomputed from room size in build().
       p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
       p2: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(34, 0, 0) }
     };
@@ -53,6 +55,10 @@ export class World {
     const roomW = this.roomW; // X
     const roomD = this.roomD; // Z
     const wallH = 8;
+
+    // Move elevators to opposite ends of the (bigger) room.
+    this.elevators.p1.anchor.set(-roomW / 2 + 12, 0, 0);
+    this.elevators.p2.anchor.set(roomW / 2 - 12, 0, 0);
 
     // Floor.
     const floorGeo = new THREE.PlaneGeometry(roomW, roomD, 1, 1);
@@ -106,7 +112,7 @@ export class World {
     scene.add(neon2);
 
     // Props & arcade machines.
-    this._addArcadesAndProps();
+    this._addArcadesAndProps(roomW, roomD);
     this._addElevators();
     this._buildSpawnPoints(roomW, roomD);
   }
@@ -147,7 +153,7 @@ export class World {
     return mesh;
   }
 
-  _addArcadesAndProps() {
+  _addArcadesAndProps(roomW, roomD) {
     const scene = this.scene;
     const mkArcade = (x, z, taskIndex = null) => {
       const body = new THREE.Mesh(
@@ -184,35 +190,59 @@ export class World {
       }
     };
 
-    // Three "task" machines, spaced on one side.
-    mkArcade(-8, -16, 0); // Task 1
-    mkArcade(0, -16, 1); // Task 2
-    mkArcade(8, -16, 2); // Task 3
+    // Task machines: "çok farklı random yerlerde" and far apart.
+    // We randomize their XZ positions each build (i.e., each page load / deploy).
+    // They are kept away from the walls and from each other.
+    this.arcades.length = 0;
+    const placed = [];
+    const pickSpot = () => {
+      const marginX = 18;
+      const marginZ = 14;
+      for (let tries = 0; tries < 100; tries++) {
+        const x = randRange(-roomW / 2 + marginX, roomW / 2 - marginX);
+        const z = randRange(-roomD / 2 + marginZ, roomD / 2 - marginZ);
+        // Keep away from elevators.
+        if (Math.abs(x) > roomW / 2 - 28 && Math.abs(z) < 14) continue;
+        const ok = placed.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > 28 * 28);
+        if (!ok) continue;
+        const v = new THREE.Vector3(x, 0, z);
+        placed.push(v);
+        return v;
+      }
+      // Fallback deterministic spots (still far).
+      return new THREE.Vector3(0, 0, -roomD / 2 + 20);
+    };
 
-    // Extra decorative machines.
-    for (let i = 0; i < 6; i++) {
-      mkArcade(-30 + i * 4, 16, null);
-    }
-    for (let i = 0; i < 6; i++) {
-      mkArcade(-30 + i * 4, -18, null);
+    const t0 = pickSpot();
+    mkArcade(t0.x, t0.z, 0);
+    const t1 = pickSpot();
+    mkArcade(t1.x, t1.z, 1);
+    const t2 = pickSpot();
+    mkArcade(t2.x, t2.z, 2);
+
+    // Extra decorative machines (spread around the larger room).
+    for (let i = 0; i < 12; i++) {
+      const x = randRange(-roomW / 2 + 14, roomW / 2 - 14);
+      const z = randRange(-roomD / 2 + 10, roomD / 2 - 10);
+      mkArcade(x, z, null);
     }
 
     // Pool table, ping pong, benches, bowling lane illusion.
     this._addBoxProp({
       size: new THREE.Vector3(4.6, 1.1, 2.4),
-      pos: new THREE.Vector3(-10, 0.55, 6),
+      pos: new THREE.Vector3(-roomW / 6, 0.55, roomD / 8),
       color: 0x143c2a,
       tag: 'prop'
     });
     this._addBoxProp({
       size: new THREE.Vector3(3.6, 1.0, 1.8),
-      pos: new THREE.Vector3(10, 0.5, 8),
+      pos: new THREE.Vector3(roomW / 6, 0.5, roomD / 6),
       color: 0x2b3b55,
       tag: 'prop'
     });
     this._addBoxProp({
       size: new THREE.Vector3(8, 0.2, 3.2),
-      pos: new THREE.Vector3(0, 0.1, 14),
+      pos: new THREE.Vector3(0, 0.1, roomD / 3),
       color: 0x1b2233,
       tag: 'prop'
     });
@@ -228,13 +258,13 @@ export class World {
     // Benches
     this._addBoxProp({
       size: new THREE.Vector3(5, 0.7, 1.1),
-      pos: new THREE.Vector3(-18, 0.35, -2),
+      pos: new THREE.Vector3(-roomW / 4, 0.35, -roomD / 10),
       color: 0x3a2a1e,
       tag: 'prop'
     });
     this._addBoxProp({
       size: new THREE.Vector3(5, 0.7, 1.1),
-      pos: new THREE.Vector3(18, 0.35, 2),
+      pos: new THREE.Vector3(roomW / 4, 0.35, roomD / 10),
       color: 0x3a2a1e,
       tag: 'prop'
     });
@@ -279,6 +309,8 @@ export class World {
 
       this._addColliderFromMesh(door, 'elevatorDoor');
       const doorCollider = this.colliders[this.colliders.length - 1];
+      // Used for right-to-left sliding direction in setElevatorDoorOpen().
+      door.userData.slideZDir = key === 'p1' ? 1 : -1;
 
       // Collision: the visible "frame" mesh is a solid cube (placeholder), so we DO NOT use it
       // for collision. Instead we add invisible wall colliders so players can stand inside.
@@ -354,9 +386,13 @@ export class World {
   setElevatorDoorOpen(key, open01) {
     // open01: 0 = closed, 1 = open
     const e = this.elevators[key];
-    const dir = key === 'p1' ? 1 : -1;
-    // Slide door outwards (towards outside wall) a bit to "open" the doorway.
-    e.doorMesh.position.x = e.anchor.x + dir * (2.55 + open01 * 1.8);
+    // Door behavior: slide RIGHT -> LEFT relative to the player's view.
+    // P1 looks +X, so "left" is +Z. P2 looks -X, so "left" is -Z.
+    // So we slide along Z with opposite directions per elevator.
+    const zDir = e.doorMesh.userData.slideZDir ?? (key === 'p1' ? 1 : -1);
+    // Keep door in doorway plane (X fixed) and slide along Z to open.
+    e.doorMesh.position.x = e.anchor.x + (key === 'p1' ? 1 : -1) * 2.55;
+    e.doorMesh.position.z = e.anchor.z + zDir * (open01 * 2.2);
     // Disable collider when mostly open.
     if (e.doorCollider) {
       // Update collider to match animated door.
