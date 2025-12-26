@@ -400,11 +400,13 @@ export class World {
 
     const bodyGeo = new THREE.CylinderGeometry(0.45, 0.45, 1.0, 16, 1, false);
     const ringGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.08, 16);
+    // Make barrels VERY visible (user said "didn't happen" -> likely couldn't find).
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x2d67ff,
-      roughness: 0.6,
+      color: 0xff3a2f,
+      roughness: 0.45,
       metalness: 0.25,
-      emissive: 0x000000
+      emissive: 0xff7a1a,
+      emissiveIntensity: 0.65
     });
     const ringMat = new THREE.MeshStandardMaterial({
       color: 0x182033,
@@ -412,8 +414,19 @@ export class World {
       metalness: 0.2
     });
 
-    for (let i = 0; i < count; i++) {
-      const p = pickSpot();
+    // Guaranteed barrels near elevators + center so you can always test quickly.
+    const fixed = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, roomD * 0.25),
+      new THREE.Vector3(0, 0, -roomD * 0.25),
+      new THREE.Vector3(-roomW * 0.25, 0, 0),
+      new THREE.Vector3(roomW * 0.25, 0, 0),
+      // Near elevator exits
+      new THREE.Vector3(this.elevators.p1.anchor.x + 10, 0, 0),
+      new THREE.Vector3(this.elevators.p2.anchor.x - 10, 0, 0)
+    ];
+
+    const makeBarrelAt = (p, id) => {
       const barrel = new THREE.Group();
       const body = new THREE.Mesh(bodyGeo, mat.clone());
       body.position.y = 0.5;
@@ -428,12 +441,22 @@ export class World {
 
       // Collider + raycast on body mesh.
       body.userData.isBarrel = true;
-      body.userData.barrelId = i;
+      body.userData.barrelId = id;
       this._addColliderFromMesh(body, 'barrel');
       const collider = this.colliders[this.colliders.length - 1];
 
-      this.barrels.push({ id: i, mesh: barrel, collider, exploded: false });
-    }
+      // Glow light so it's obvious.
+      const light = new THREE.PointLight(0xff7a1a, 1.2, 6.0, 2.0);
+      light.position.set(p.x, 1.1, p.z);
+      this.scene.add(light);
+      barrel.userData.light = light;
+
+      this.barrels.push({ id, mesh: barrel, collider, exploded: false });
+    };
+
+    let id = 0;
+    for (const p of fixed) makeBarrelAt(p, id++);
+    for (; id < count; id++) makeBarrelAt(pickSpot(), id);
   }
 
   explodeBarrel(id) {
@@ -442,6 +465,7 @@ export class World {
     b.exploded = true;
     b.mesh.visible = false;
     if (b.collider) b.collider.disabled = true;
+    if (b.mesh.userData.light) this.scene.remove(b.mesh.userData.light);
 
     const pos = b.mesh.position.clone();
 
@@ -482,7 +506,7 @@ export class World {
       roughness: 0.7,
       metalness: 0.0
     });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.9), mat);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.22, 1.2), mat);
     mesh.position.set(x, 0.09, z);
     this.scene.add(mesh);
 
@@ -491,7 +515,7 @@ export class World {
     this.scene.add(light);
 
     const box = new THREE.Box3().setFromObject(mesh);
-    this.fireBlocks.push({ id: this.fireBlocks.length, mesh, light, box, t: 14.0 });
+    this.fireBlocks.push({ id: this.fireBlocks.length, mesh, light, box, t: 20.0 });
   }
 
   _addElevators() {

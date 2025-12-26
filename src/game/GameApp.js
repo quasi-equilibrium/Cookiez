@@ -10,6 +10,7 @@ import { DemoBots } from './DemoBots.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
+const BUILD_TAG = 'barrels-v2'; // simple visual confirmation on Pages
 
 // Vite sets BASE_URL correctly for GitHub Pages (e.g. "/Cookiez/") and for relative builds ("./").
 // IMPORTANT: Never hardcode "/assets/..." for GitHub Pages project sites, because "/assets"
@@ -136,6 +137,7 @@ export class GameApp {
       restartBtn: document.getElementById('restart-btn'),
 
       controlsHelp: document.getElementById('controls-help'),
+      buildTag: document.getElementById('build-tag'),
 
       p1: {
         hud: document.getElementById('hud-p1'),
@@ -155,6 +157,7 @@ export class GameApp {
         scope: document.getElementById('p2-scope')
       }
     };
+    if (ui.buildTag) ui.buildTag.textContent = BUILD_TAG;
     ui.p1.radar = document.getElementById('p1-radar');
     ui.p1.radarCtx = ui.p1.radar?.getContext('2d');
     ui.p2.radarCtx = ui.p2.radar?.getContext('2d');
