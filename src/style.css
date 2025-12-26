@@ -183,6 +183,46 @@ body {
   transform: translate(-50%, -50%);
 }
 
+.scope-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scope-ring {
+  width: min(62vh, 62vw);
+  height: min(62vh, 62vw);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.78),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+.scope-lines {
+  position: absolute;
+  width: min(62vh, 62vw);
+  height: min(62vh, 62vw);
+}
+.scope-lines::before,
+.scope-lines::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+.scope-lines::before {
+  width: 2px;
+  height: 100%;
+  transform: translate(-50%, -50%);
+}
+.scope-lines::after {
+  width: 100%;
+  height: 2px;
+  transform: translate(-50%, -50%);
+}
+
 .hp-bar-wrap {
   position: absolute;
   bottom: 18px;
