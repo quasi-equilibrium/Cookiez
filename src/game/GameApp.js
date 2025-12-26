@@ -243,6 +243,9 @@ export class GameApp {
 
     this.audio.stopLoop('elevator');
     this.audio.stopLoop('taskBeep');
+    this.audio.stopLoop('music');
+    // If a real ambient audio buffer was playing, stop it too.
+    this.audio.stopAmbient();
     this._resetRound();
   }
 
@@ -286,8 +289,10 @@ export class GameApp {
     // Spawn both players inside their elevators.
     this._spawnInElevator();
 
-    // Start ambient (optional; no crash if missing).
-    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.35, fallback: 'elevatorHum' });
+    // Start music at game start (Mario-ish vibe). Runs even if no audio assets exist.
+    this.audio.startLoop('music', 'mario', { volume: 0.22 });
+    // Ambient file is optional; if missing we simply keep the chiptune.
+    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.18, fallback: null });
     // Extra elevator hum layer (stops when doors fully open / fight starts).
     this.audio.startLoop('elevator', 'elevatorHum', { volume: 0.55 });
   }
@@ -766,20 +771,22 @@ export class GameApp {
     // - P1: ShiftLeft (always) + optional Mouse Left when mouseFireMode === 'both'
     const p1FirePressed = this.input.wasPressed('ShiftLeft') || (this.config.mouseFireMode === 'both' && this.input.mouse.leftPressed);
     const p1FireReleased = this.input.wasReleased('ShiftLeft') || (this.config.mouseFireMode === 'both' && this.input.mouse.leftReleased);
+    const p1FireDown = this.input.isDown('ShiftLeft') || (this.config.mouseFireMode === 'both' && this.input.mouse.leftDown);
 
     const p2FirePressed = this.input.mouse.leftPressed;
     const p2FireReleased = this.input.mouse.leftReleased;
+    const p2FireDown = this.input.mouse.leftDown;
 
-    this._processFire('p1', 'p2', p1FirePressed, p1FireReleased);
+    this._processFire('p1', 'p2', p1FirePressed, p1FireReleased, p1FireDown);
     if (this.config.mouseFireMode === 'p2') {
-      this._processFire('p2', 'p1', p2FirePressed, p2FireReleased);
+      this._processFire('p2', 'p1', p2FirePressed, p2FireReleased, p2FireDown);
     } else {
       // In "both", P2 still fires from mouse, but P1 already consumed mouse for its own handling too.
-      this._processFire('p2', 'p1', p2FirePressed, p2FireReleased);
+      this._processFire('p2', 'p1', p2FirePressed, p2FireReleased, p2FireDown);
     }
   }
 
-  _processFire(shooterId, targetId, pressed, released) {
+  _processFire(shooterId, targetId, pressed, released, down) {
     const shooter = this.players[shooterId];
     const target = this.players[targetId];
     const w = this.weapons[shooterId];
@@ -795,6 +802,12 @@ export class GameApp {
           this._shootHitscan(shooterId, targetId);
         }
       }
+      return;
+    }
+
+    // Vandal: full auto while held.
+    if (w.type === WeaponType.VANDAL) {
+      if (down) this._shootHitscan(shooterId, targetId);
       return;
     }
 
@@ -976,12 +989,11 @@ export class GameApp {
     // Simple top-down radar per player.
     const roomW = this.world.roomW;
     const roomD = this.world.roomD;
-    const arcades = this.world.arcades;
+    // User request: radar shows ONLY self (no enemies, no tasks).
 
     const draw = (id, canvas, ctx) => {
       if (!canvas || !ctx) return;
       const self = this.players[id];
-      const other = this.players[id === 'p1' ? 'p2' : 'p1'];
 
       const w = canvas.width;
       const h = canvas.height;
@@ -1002,15 +1014,23 @@ export class GameApp {
         return { x, y };
       };
 
-      // Task locations as '?'.
-      ctx.font = '900 16px ui-sans-serif, system-ui, Segoe UI, Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      for (const a of arcades) {
-        const p = toRadar(a.position);
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.fillText('?', p.x, p.y);
-      }
+      // Self arrow (shows facing direction).
+      const p = toRadar(self.pos);
+      const yaw = self.yaw;
+      const dx = -Math.sin(yaw);
+      const dz = -Math.cos(yaw);
+      const ang = Math.atan2(-dz, dx);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(ang);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(9, 0);
+      ctx.lineTo(-6, 6);
+      ctx.lineTo(-6, -6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     };
 
     draw('p1', this._ui.p1.radar, this._ui.p1.radarCtx);

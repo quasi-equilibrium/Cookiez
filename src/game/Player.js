@@ -49,7 +49,15 @@ export class Player {
       emissive: 0x000000,
       emissiveIntensity: 0.0
     });
-    this._emissiveMats = [mainMat, darkMat];
+    // Arms: color-tinted (user request: "kolunu da renkli boya").
+    const armMat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.55,
+      metalness: 0.12,
+      emissive: 0x000000,
+      emissiveIntensity: 0.0
+    });
+    this._emissiveMats = [mainMat, darkMat, armMat];
 
     this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.25), mainMat);
     this.torso.position.set(0, 1.05, 0);
@@ -61,10 +69,10 @@ export class Player {
     this.legR.position.x = 0.12;
 
     // Arms
-    this.armL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.13), darkMat);
+    this.armL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.13), armMat);
     this.armL.position.set(-0.38, 1.12, 0);
     this.armL.rotation.x = 0.15; // idle
-    this.armR = this.armL.clone();
+    this.armR = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.13), armMat);
     this.armR.position.x = 0.38;
     this.armR.rotation.x = -0.9; // holding pose forward
 

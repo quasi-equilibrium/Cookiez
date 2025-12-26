@@ -8,7 +8,7 @@ export class AudioManager {
     this._missing = new Set();
     this._ambientNode = null;
     this._volume = 0.7;
-    /** @type {Map<string, {stop:()=>void}>} */
+    /** @type {Map<string, {stop:(fadeMs?:number)=>void}>} */
     this._loops = new Map();
   }
 
@@ -120,24 +120,130 @@ export class AudioManager {
       g.connect(this.master);
       osc.start();
 
+      let alive = true;
       const interval = setInterval(() => {
-        if (!this.ctx) return;
+        if (!this.ctx || !alive) return;
         const t = this.ctx.currentTime;
         // 3 quick beeps.
         for (let i = 0; i < 3; i++) {
           const tt = t + i * 0.18;
           g.gain.cancelScheduledValues(tt);
           g.gain.setValueAtTime(0, tt);
-          g.gain.linearRampToValueAtTime(volume, tt + 0.01);
-          g.gain.linearRampToValueAtTime(0, tt + 0.09);
+          // Slightly longer attack/release to reduce clicking/cızırtı.
+          g.gain.linearRampToValueAtTime(volume, tt + 0.012);
+          g.gain.linearRampToValueAtTime(0, tt + 0.095);
         }
-      }, 750);
+      }, 780);
 
       this._loops.set(key, {
-        stop: () => {
+        stop: (fadeMs = 80) => {
+          alive = false;
           clearInterval(interval);
           try {
-            osc.stop();
+            const t = this.ctx?.currentTime ?? 0;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            osc.stop(t + fadeMs / 1000 + 0.02);
+          } catch {
+            // ignore
+          }
+        }
+      });
+      return;
+    }
+
+    if (type === 'mario') {
+      // Simple chiptune loop (Mario-ish vibe) using 2 voices.
+      const lead = this.ctx.createOscillator();
+      lead.type = 'square';
+      const bass = this.ctx.createOscillator();
+      bass.type = 'triangle';
+
+      const gLead = this.ctx.createGain();
+      const gBass = this.ctx.createGain();
+      gLead.gain.value = 0;
+      gBass.gain.value = 0;
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 3200;
+
+      lead.connect(gLead);
+      bass.connect(gBass);
+      gLead.connect(lp);
+      gBass.connect(lp);
+      lp.connect(this.master);
+
+      lead.start();
+      bass.start();
+
+      const NOTE = {
+        C4: 261.63,
+        D4: 293.66,
+        E4: 329.63,
+        G4: 392.0,
+        A4: 440.0,
+        C5: 523.25,
+        E5: 659.25,
+        G5: 783.99
+      };
+
+      const leadSeq = [NOTE.E5, NOTE.E5, NOTE.E5, null, NOTE.C5, NOTE.E5, null, NOTE.G5, null, null, null, null, NOTE.G4, null, null, null];
+      const bassSeq = [NOTE.C4, null, NOTE.C4, null, NOTE.G4, null, NOTE.G4, null, NOTE.A4, null, NOTE.A4, null, NOTE.G4, null, null, null];
+
+      let step = 0;
+      const stepMs = 120;
+      let alive = true;
+
+      const tick = () => {
+        if (!this.ctx || !alive) return;
+        const t = this.ctx.currentTime;
+        const l = leadSeq[step % leadSeq.length];
+        const b = bassSeq[step % bassSeq.length];
+
+        if (l) {
+          lead.frequency.setValueAtTime(l, t);
+          gLead.gain.cancelScheduledValues(t);
+          gLead.gain.setValueAtTime(0, t);
+          gLead.gain.linearRampToValueAtTime(volume * 0.18, t + 0.01);
+          gLead.gain.linearRampToValueAtTime(0, t + stepMs / 1000 - 0.01);
+        } else {
+          gLead.gain.cancelScheduledValues(t);
+          gLead.gain.setValueAtTime(0, t);
+        }
+
+        if (b) {
+          bass.frequency.setValueAtTime(b, t);
+          gBass.gain.cancelScheduledValues(t);
+          gBass.gain.setValueAtTime(0, t);
+          gBass.gain.linearRampToValueAtTime(volume * 0.12, t + 0.01);
+          gBass.gain.linearRampToValueAtTime(0, t + stepMs / 1000 - 0.01);
+        } else {
+          gBass.gain.cancelScheduledValues(t);
+          gBass.gain.setValueAtTime(0, t);
+        }
+
+        step = (step + 1) % leadSeq.length;
+      };
+
+      tick();
+      const interval = setInterval(tick, stepMs);
+
+      this._loops.set(key, {
+        stop: (fadeMs = 120) => {
+          alive = false;
+          clearInterval(interval);
+          try {
+            const t = this.ctx?.currentTime ?? 0;
+            gLead.gain.cancelScheduledValues(t);
+            gBass.gain.cancelScheduledValues(t);
+            gLead.gain.setValueAtTime(gLead.gain.value, t);
+            gBass.gain.setValueAtTime(gBass.gain.value, t);
+            gLead.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            gBass.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            lead.stop(t + fadeMs / 1000 + 0.02);
+            bass.stop(t + fadeMs / 1000 + 0.02);
           } catch {
             // ignore
           }
@@ -148,33 +254,40 @@ export class AudioManager {
 
     if (type === 'elevatorHum') {
       const osc = this.ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 55;
+      // Use sine to avoid harsh buzzing.
+      osc.type = 'sine';
+      osc.frequency.value = 52;
       const lfo = this.ctx.createOscillator();
       lfo.type = 'sine';
-      lfo.frequency.value = 2.2;
+      lfo.frequency.value = 1.4;
       const lfoGain = this.ctx.createGain();
-      lfoGain.gain.value = 8;
+      lfoGain.gain.value = 6;
       lfo.connect(lfoGain);
       lfoGain.connect(osc.frequency);
 
       const g = this.ctx.createGain();
-      g.gain.value = volume * 0.35;
+      g.gain.value = 0;
       osc.connect(g);
       g.connect(this.master);
       osc.start();
       lfo.start();
 
       this._loops.set(key, {
-        stop: () => {
+        stop: (fadeMs = 160) => {
           try {
-            osc.stop();
-            lfo.stop();
+            const t = this.ctx?.currentTime ?? 0;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            osc.stop(t + fadeMs / 1000 + 0.02);
+            lfo.stop(t + fadeMs / 1000 + 0.02);
           } catch {
             // ignore
           }
         }
       });
+      // Fade in.
+      g.gain.linearRampToValueAtTime(volume * 0.22, this.ctx.currentTime + 0.15);
       return;
     }
   }
@@ -183,7 +296,7 @@ export class AudioManager {
     const l = this._loops.get(key);
     if (!l) return;
     this._loops.delete(key);
-    l.stop();
+    l.stop?.();
   }
 
   _playSynthOneShot(type, { volume }) {
