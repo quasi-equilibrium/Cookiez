@@ -418,6 +418,48 @@ export class AudioManager {
       g.gain.linearRampToValueAtTime(volume * 0.12, this.ctx.currentTime + 0.25);
       return;
     }
+
+    if (type === 'snow') {
+      // Soft snow ambience: lower, smoother noise than rain.
+      const sr = this.ctx.sampleRate;
+      const dur = 1.0;
+      const buf = this.ctx.createBuffer(1, Math.floor(sr * dur), sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.22;
+
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1400;
+      lp.Q.value = 0.2;
+
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+
+      src.connect(lp);
+      lp.connect(g);
+      g.connect(this.master);
+      src.start();
+
+      this._loops.set(key, {
+        stop: (fadeMs = 240) => {
+          try {
+            const t = this.ctx?.currentTime ?? 0;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            src.stop(t + fadeMs / 1000 + 0.02);
+          } catch {
+            // ignore
+          }
+        }
+      });
+      g.gain.linearRampToValueAtTime(volume * 0.12, this.ctx.currentTime + 0.3);
+      return;
+    }
   }
 
   stopLoop(key) {
