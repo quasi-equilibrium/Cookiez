@@ -212,8 +212,9 @@ export class World {
   }
 
   spawnGift(x, z) {
-    // Only one gift at a time to keep it simple.
-    if (this.gifts.some((g) => g.state !== 'opened')) return;
+    // Allow up to 2 gifts alive at once.
+    const alive = this.gifts.filter((g) => g.state !== 'opened').length;
+    if (alive >= 2) return;
 
     const baseMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.1 });
     const ribbonMat = new THREE.MeshStandardMaterial({

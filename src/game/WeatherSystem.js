@@ -47,6 +47,8 @@ export class WeatherSystem {
     this._yilbasiGiftT = 0;
     this._yilbasiGiftAt = 0;
     this._yilbasiGiftDone = false;
+    this._yilbasiGiftAt2 = 0;
+    this._yilbasiGiftDone2 = false;
   }
 
   mount() {
@@ -186,6 +188,8 @@ export class WeatherSystem {
       this._yilbasiGiftT = 0;
       this._yilbasiGiftAt = 30 + Math.random() * 10; // 30..40s
       this._yilbasiGiftDone = false;
+      this._yilbasiGiftAt2 = this._yilbasiGiftAt + 20; // second gift 20s later
+      this._yilbasiGiftDone2 = false;
     } else {
       // SUN
       scene.background = new THREE.Color('#0b1530');
@@ -250,7 +254,7 @@ export class WeatherSystem {
       this._updateSnow(dt);
       this.audio?.startLoop?.('snow', 'snow', { volume: 0.22 });
 
-      // Gift spawn + announcement.
+      // Gift spawn + announcements.
       this._yilbasiGiftT += dt;
       if (!this._yilbasiGiftDone && this._yilbasiGiftT >= this._yilbasiGiftAt) {
         this._yilbasiGiftDone = true;
@@ -266,6 +270,24 @@ export class WeatherSystem {
         }
         this.audio?.speak?.(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
 
+        const marginX = 18;
+        const marginZ = 16;
+        const x = (Math.random() - 0.5) * (this.world.roomW - marginX * 2);
+        const z = (Math.random() - 0.5) * (this.world.roomD - marginZ * 2);
+        this.world.spawnGift?.(x, z);
+      }
+      if (!this._yilbasiGiftDone2 && this._yilbasiGiftT >= this._yilbasiGiftAt2) {
+        this._yilbasiGiftDone2 = true;
+        const line = 'oooooo noel baba 1 tane daha hediye bırakmış';
+        if (this.ui.toastMsg) {
+          this.ui.toastMsg.textContent = line;
+          this.ui.toastMsg.classList.remove('show');
+          // eslint-disable-next-line no-unused-expressions
+          this.ui.toastMsg.offsetWidth;
+          this.ui.toastMsg.classList.add('show');
+          setTimeout(() => this.ui.toastMsg.classList.remove('show'), 3000);
+        }
+        this.audio?.speak?.(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
         const marginX = 18;
         const marginZ = 16;
         const x = (Math.random() - 0.5) * (this.world.roomW - marginX * 2);
