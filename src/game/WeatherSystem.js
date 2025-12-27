@@ -587,15 +587,26 @@ export class WeatherSystem {
       this.ui.vipMsg.textContent = 'önce VIP kodu gir';
       return;
     }
-    if (this._redeemed.has('all_vip')) {
+    let added = 0;
+    const add = (t) => {
+      if (this.inventoryItems.includes(t)) return;
+      this.inventoryItems.push(t);
+      added++;
+    };
+
+    // Always ensure these are present (even if ALL VIP was redeemed earlier).
+    add(WeatherType.ALL_GOLD);
+    add(WeatherType.BOMBER);
+    add(WeatherType.TUHAFLIKLAR);
+    add(WeatherType.HACK);
+
+    if (added === 0 && this._redeemed.has('all_vip')) {
       this.ui.vipMsg.textContent = 'bunu zaten aldınız';
       return;
     }
+
     this._redeemed.add('all_vip');
-    if (!this.inventoryItems.includes(WeatherType.ALL_GOLD)) this.inventoryItems.push(WeatherType.ALL_GOLD);
-    if (!this.inventoryItems.includes(WeatherType.BOMBER)) this.inventoryItems.push(WeatherType.BOMBER);
-    if (!this.inventoryItems.includes(WeatherType.TUHAFLIKLAR)) this.inventoryItems.push(WeatherType.TUHAFLIKLAR);
-    this.ui.vipMsg.textContent = 'VIP eşyalar envantere geldi';
+    this.ui.vipMsg.textContent = added ? 'VIP eşyalar envantere geldi' : 'VIP hazır';
     this._syncUI();
     // Make it obvious: open inventory immediately so user sees items.
     this.openInventory();
