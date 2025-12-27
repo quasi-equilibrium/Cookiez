@@ -26,6 +26,9 @@ export class World {
     /** @type {Array<{id:number, mesh:THREE.Mesh, collider:any, exploded:boolean}>} */
     this.barrels = [];
 
+    /** @type {Array<{id:number, mesh:THREE.Mesh, position:THREE.Vector3, picked:boolean}>} */
+    this.bottles = [];
+
     /** @type {Array<{id:number, mesh:THREE.Mesh, light:THREE.Light|null, box:THREE.Box3, t:number}>} */
     this.fireBlocks = [];
 
@@ -196,6 +199,70 @@ export class World {
     this._addElevators();
     this._buildSpawnPoints(roomW, roomD);
     this._addLavaPools(roomW, roomD);
+    this._addBottles(roomW, roomD, 14);
+  }
+
+  pickBottle(id) {
+    const b = this.bottles[id];
+    if (!b || b.picked) return false;
+    b.picked = true;
+    b.mesh.visible = false;
+    if (b.mesh.userData.light) this.scene.remove(b.mesh.userData.light);
+    return true;
+  }
+
+  _addBottles(roomW, roomD, count) {
+    // Gold bottles scattered around (pickup).
+    this.bottles.length = 0;
+    const spots = [];
+    const pickSpot = () => {
+      const marginX = 18;
+      const marginZ = 14;
+      for (let tries = 0; tries < 120; tries++) {
+        const x = randRange(-roomW / 2 + marginX, roomW / 2 - marginX);
+        const z = randRange(-roomD / 2 + marginZ, roomD / 2 - marginZ);
+        if (Math.abs(x) > roomW / 2 - 30 && Math.abs(z) < 16) continue; // avoid elevators
+        const ok = spots.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > 9 * 9);
+        if (!ok) continue;
+        const v = new THREE.Vector3(x, 0, z);
+        spots.push(v);
+        return v;
+      }
+      return new THREE.Vector3(0, 0, 0);
+    };
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffd24a,
+      roughness: 0.25,
+      metalness: 0.6,
+      emissive: 0xffb13b,
+      emissiveIntensity: 0.35
+    });
+    const geoBody = new THREE.CylinderGeometry(0.22, 0.26, 0.75, 14);
+    const geoNeck = new THREE.CylinderGeometry(0.14, 0.18, 0.35, 12);
+    const capMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.7, metalness: 0.1 });
+
+    const makeBottleAt = (pos, id) => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(geoBody, mat.clone());
+      body.position.y = 0.38;
+      const neck = new THREE.Mesh(geoNeck, mat.clone());
+      neck.position.y = 0.9;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 10), capMat);
+      cap.position.y = 1.12;
+      g.add(body, neck, cap);
+      g.position.set(pos.x, 0, pos.z);
+      g.rotation.y = randRange(-Math.PI, Math.PI);
+      this.scene.add(g);
+      // small glow light (cheap)
+      const light = new THREE.PointLight(0xffd24a, 0.8, 5.5, 2.0);
+      light.position.set(pos.x, 1.0, pos.z);
+      this.scene.add(light);
+      g.userData.light = light;
+      this.bottles.push({ id, mesh: g, position: new THREE.Vector3(pos.x, 0, pos.z), picked: false });
+    };
+
+    for (let id = 0; id < count; id++) makeBottleAt(pickSpot(), id);
   }
 
   update(dt) {

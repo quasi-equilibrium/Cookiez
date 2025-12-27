@@ -30,6 +30,10 @@ export class Player {
 
     this.taskLevel = 0; // 0..3
 
+    // Bottle pickup (temporary melee).
+    this.hasBottle = false;
+    this.bottlePrevWeapon = null;
+
     this.camera = new THREE.PerspectiveCamera(75, 1, 0.05, 180);
     this.camera.position.set(0, 1.6, 0);
 
@@ -250,6 +254,8 @@ export class Player {
     this.pos.copy(pos);
     this.damageFlashTimer = 0;
     this.model.visible = true;
+    this.hasBottle = false;
+    this.bottlePrevWeapon = null;
     this.startInvuln();
   }
 }
