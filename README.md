@@ -2,6 +2,43 @@
 
 Split-screen 2-player FPS inside a single 80's arcade hall.
 
+## Oyun üzerinde değişiklik yapmak (kısa rehber)
+
+Bu repo tamamen istemci tarafı (Vite + Three.js). Oyun “entrypoint”i `src/main.js`, ana oyun döngüsü ve kurallar `src/game/GameApp.js` içindedir.
+
+### Çalıştırma
+
+```bash
+npm install
+npm run dev
+```
+
+### En çok değiştirilen yerler (dosya haritası)
+
+- **Oyun kuralları / skor / ateş etme / hareket**: `src/game/GameApp.js`
+  - Kazanma skoru: `WIN_KILLS`
+  - Hareket/jump/gravity/speed gibi sayılar: `_updateMovement()`
+  - Hasar verme, vurma (raycast), barrel patlama tetikleme: `_shootHitscan()` / `_knifeAttack()`
+- **Silah istatistikleri (damage, şarjör, fire-rate, reload)**: `src/game/Weapons.js`
+  - Hasarlar: `damageForWeapon()`
+  - Mermi ve şarjör sayıları: `WeaponState.setWeapon()`
+  - Atış hızı: `WeaponState.consumeShot()`
+- **Harita / objeler / spawnlar / arcade makineleri**: `src/game/World.js`
+  - Harita boyutu: `roomW`, `roomD`
+  - Arcade makinelerinin konumu/dağılımı: `_addArcadesAndProps()`
+  - Variller (barrels): `_addBarrels()` ve `explodeBarrel()`
+- **Görevler (TicTacToe / Çarpım / Snake)**: `src/game/TaskSystem.js`
+  - Metinler, zorluk, snake hızı, “10 food” gibi hedefler burada.
+- **Kontroller / input**: `src/game/Input.js`
+  - Klavye tuşları, mouse click/lock davranışı burada.
+- **Oyuncu canı, invuln, model/hitbox**: `src/game/Player.js`
+  - `maxHp`, `invulnDuration`, hitbox boyutları gibi değerler burada.
+- **UI (menü, HUD, yazılar)**: `index.html` ve `src/style.css`
+
+### GitHub Pages notu
+
+GitHub Pages’e doğru deploy için `npm run build` çıktısı olan `dist/` yayınlanmalı. Repo zaten `.github/workflows/deploy-pages.yml` ile bunu yapacak şekilde ayarlı.
+
 ## Run
 
 ```bash

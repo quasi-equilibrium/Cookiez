@@ -25,6 +25,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 20;
 }
 
 .hidden {
@@ -85,7 +86,7 @@ body {
 }
 
 .inventory {
-  position: absolute;
+  position: fixed;
   left: 12px;
   bottom: 12px;
   display: flex;
@@ -96,37 +97,139 @@ body {
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.12);
   pointer-events: auto;
+  z-index: 80; /* menu üstünde dursun */
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25);
 }
 .inventory .bag {
-  font-size: 18px;
-  opacity: 0.95;
-}
-.inv-item {
   width: 44px;
   height: 44px;
+  border-radius: 14px;
+  position: relative;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.inventory .bag::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 12px;
+  bottom: 8px;
   border-radius: 12px;
+  background: linear-gradient(180deg, rgba(99, 179, 255, 0.25), rgba(255, 79, 215, 0.18));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.inventory .bag::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 14px;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px 999px 10px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-bottom: none;
+  opacity: 0.8;
+}
+
+.inv-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.inv-item {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.06);
   cursor: pointer;
   color: #fff;
   font-weight: 1000;
+  position: relative;
+  overflow: hidden;
+}
+.inv-item.empty {
+  opacity: 0.55;
+  cursor: default;
+}
+.inv-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.2));
+}
+.inv-item::after {
+  content: '—';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 1000;
+  opacity: 0.75;
+}
+.inv-item[data-weather='sun']::after {
+  content: '';
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff5a6, #ffb13b);
+  box-shadow: 0 0 0 4px rgba(255, 177, 59, 0.18), 0 0 18px rgba(255, 177, 59, 0.25);
+}
+.inv-item[data-weather='cloud']::after {
+  content: '';
+  width: 34px;
+  height: 22px;
+  border-radius: 18px;
+  background: linear-gradient(#eaf2ff, #9fb2c9);
+  box-shadow: 0 0 18px rgba(160, 200, 255, 0.18);
+}
+.inv-item[data-weather='lightning']::after {
+  content: '⚡';
+  font-size: 26px;
+  color: #eaf2ff;
+  text-shadow: 0 0 14px rgba(99, 179, 255, 0.45);
+}
+.inv-item[data-weather='volcano']::after {
+  content: '';
+  width: 34px;
+  height: 28px;
+  clip-path: polygon(50% 0%, 92% 100%, 8% 100%);
+  background: linear-gradient(180deg, #ff8a5a, #ff3333);
+  box-shadow: 0 0 18px rgba(255, 70, 70, 0.22);
 }
 .inv-select {
-  border-radius: 12px;
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
   font-weight: 1000;
-  padding: 10px 12px;
+  padding: 6px 10px;
   cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.6px;
 }
 .inv-check {
   font-weight: 1000;
   color: #37e6a1;
-  padding: 6px 10px;
-  border-radius: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
   border: 1px solid rgba(55, 230, 161, 0.35);
   background: rgba(55, 230, 161, 0.1);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
+body.menu-mode .inventory {
+  transform: scale(1.25);
+  transform-origin: left bottom;
 }
 
 .center-msg {
@@ -254,6 +357,36 @@ body {
   width: 14px;
   height: 2px;
   transform: translate(-50%, -50%);
+}
+
+.kill-pop {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  font-size: 34px;
+  font-weight: 1000;
+  opacity: 0;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.6));
+  color: #ff2b2b;
+  pointer-events: none;
+}
+.kill-pop.show {
+  animation: killPop 0.95s ease forwards;
+}
+@keyframes killPop {
+  0% {
+    transform: translateX(-50%) translateY(12px) scale(0.85) rotate(-10deg);
+    opacity: 0;
+  }
+  18% {
+    transform: translateX(-50%) translateY(0px) scale(1.15) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-10px) scale(0.98) rotate(0deg);
+    opacity: 0;
+  }
 }
 
 .scope-overlay {

@@ -11,7 +11,7 @@ import { WeatherSystem } from './WeatherSystem.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
-const BUILD_TAG = 'barrels-v2'; // simple visual confirmation on Pages
+const BUILD_TAG = 'inventory-v1'; // simple visual confirmation on Pages
 
 // Vite sets BASE_URL correctly for GitHub Pages (e.g. "/Cookiez/") and for relative builds ("./").
 // IMPORTANT: Never hardcode "/assets/..." for GitHub Pages project sites, because "/assets"
@@ -77,6 +77,13 @@ export class GameApp {
     this._tmpV = new THREE.Vector3();
     this._tmpV2 = new THREE.Vector3();
     this._tmpHitEnd = new THREE.Vector3();
+
+    // Combat FX.
+    this._damageTextPool = [];
+    this._damageTexts = [];
+    this._bloodPool = [];
+    this._blood = [];
+    this._corpses = [];
 
     this.config = {
       mouseFireMode: 'p2' // 'p2' | 'both'
@@ -161,6 +168,7 @@ export class GameApp {
         prompt: document.getElementById('p1-prompt'),
         invuln: document.getElementById('p1-invuln'),
         weapon: document.getElementById('p1-weapon'),
+        killPop: document.getElementById('p1-kill-pop'),
         scope: document.getElementById('p1-scope')
       },
       p2: {
@@ -169,6 +177,7 @@ export class GameApp {
         prompt: document.getElementById('p2-prompt'),
         invuln: document.getElementById('p2-invuln'),
         weapon: document.getElementById('p2-weapon'),
+        killPop: document.getElementById('p2-kill-pop'),
         radar: document.getElementById('p2-radar'),
         scope: document.getElementById('p2-scope')
       }
@@ -235,12 +244,25 @@ export class GameApp {
     return ui;
   }
 
+  _showKillPop(killerId) {
+    const el = this._ui?.[killerId]?.killPop;
+    if (!el) return;
+    el.classList.remove('show');
+    // Restart animation reliably.
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 980);
+  }
+
   _applyMenuMode(isMenu) {
     // Keep the menu DOM alive because it owns the fade overlay.
     if (isMenu) {
       this._ui.menu.classList.remove('in-game');
+      document.body.classList.add('menu-mode');
     } else {
       this._ui.menu.classList.add('in-game');
+      document.body.classList.remove('menu-mode');
     }
   }
 
@@ -457,6 +479,187 @@ export class GameApp {
       this._updateHUD();
       this._updateScoreboard();
     }
+
+    // World-space combat FX (damage numbers, particles, corpses).
+    this._updateCombatFx(dt);
+  }
+
+  _updateCombatFx(dt) {
+    // Damage numbers.
+    for (let i = this._damageTexts.length - 1; i >= 0; i--) {
+      const d = this._damageTexts[i];
+      d.t += dt;
+      const a = clamp(1 - d.t / d.life, 0, 1);
+      d.sprite.position.addScaledVector(d.vel, dt);
+      // Ease-out fade.
+      d.sprite.material.opacity = a * a;
+      // Slight grow then settle.
+      const s = 0.8 + Math.min(0.25, d.t * 0.35);
+      d.sprite.scale.setScalar(s);
+      if (d.t >= d.life) {
+        this.world.scene.remove(d.sprite);
+        this._damageTexts.splice(i, 1);
+        this._damageTextPool.push(d);
+      }
+    }
+
+    // Blood particles.
+    for (let i = this._blood.length - 1; i >= 0; i--) {
+      const p = this._blood[i];
+      p.t += dt;
+      p.vel.y -= 14 * dt;
+      p.mesh.position.addScaledVector(p.vel, dt);
+      // Simple ground collision + slide.
+      if (p.mesh.position.y <= 0.02) {
+        p.mesh.position.y = 0.02;
+        p.vel.y *= -0.15;
+        p.vel.x *= 0.55;
+        p.vel.z *= 0.55;
+      }
+      const a = clamp(1 - p.t / p.life, 0, 1);
+      p.mesh.material.opacity = a;
+      if (p.t >= p.life) {
+        this.world.scene.remove(p.mesh);
+        this._blood.splice(i, 1);
+        this._bloodPool.push(p);
+      }
+    }
+
+    // Corpses (cheap ragdoll-ish fall + fade).
+    for (let i = this._corpses.length - 1; i >= 0; i--) {
+      const c = this._corpses[i];
+      c.t += dt;
+      // Fall/tilt in first 0.35s.
+      const k = clamp(c.t / 0.35, 0, 1);
+      const ease = 1 - (1 - k) * (1 - k);
+      c.group.rotation.x = c.rot0.x + (c.rot1.x - c.rot0.x) * ease;
+      c.group.rotation.z = c.rot0.z + (c.rot1.z - c.rot0.z) * ease;
+      // Small slide.
+      c.group.position.addScaledVector(c.vel, dt);
+      c.vel.multiplyScalar(Math.exp(-3.2 * dt));
+
+      // Fade out near the end.
+      const fadeStart = 1.0;
+      const fadeEnd = 2.0;
+      if (c.t >= fadeStart) {
+        const a = clamp(1 - (c.t - fadeStart) / (fadeEnd - fadeStart), 0, 1);
+        c._mats.forEach((m) => {
+          m.transparent = true;
+          m.opacity = a;
+        });
+      }
+      if (c.t >= fadeEnd) {
+        this.world.scene.remove(c.group);
+        this._corpses.splice(i, 1);
+      }
+    }
+  }
+
+  _spawnDamageNumber(worldPos, amount) {
+    const text = `-${amount}`;
+    const d =
+      this._damageTextPool.pop() ??
+      (() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        const mat = new THREE.SpriteMaterial({
+          map: tex,
+          transparent: true,
+          opacity: 1,
+          depthWrite: false
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(0.9, 0.45, 1);
+        return { sprite, canvas, ctx, tex, t: 0, life: 2.0, vel: new THREE.Vector3() };
+      })();
+
+    d.t = 0;
+    d.life = 2.0;
+    d.sprite.material.opacity = 1;
+    d.sprite.position.copy(worldPos);
+    d.vel.set(randRange(-0.15, 0.15), randRange(0.55, 0.85), randRange(-0.15, 0.15));
+
+    // Draw text to canvas.
+    const ctx = d.ctx;
+    ctx.clearRect(0, 0, d.canvas.width, d.canvas.height);
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.fillRect(0, 0, d.canvas.width, d.canvas.height);
+    ctx.font = '1000 72px ui-sans-serif, system-ui, Segoe UI, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.strokeText(text, d.canvas.width / 2, d.canvas.height / 2);
+    ctx.fillStyle = '#ff2b2b';
+    ctx.fillText(text, d.canvas.width / 2, d.canvas.height / 2);
+    d.tex.needsUpdate = true;
+
+    this.world.scene.add(d.sprite);
+    this._damageTexts.push(d);
+  }
+
+  _spawnBloodParticles(worldPos, count = 10) {
+    for (let i = 0; i < count; i++) {
+      const p =
+        this._bloodPool.pop() ??
+        (() => {
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.04, 8, 6),
+            new THREE.MeshBasicMaterial({ color: 0xff2b2b, transparent: true, opacity: 1, depthWrite: false })
+          );
+          return { mesh, vel: new THREE.Vector3(), t: 0, life: 0.9 };
+        })();
+      p.t = 0;
+      p.life = 0.85 + Math.random() * 0.45;
+      p.mesh.material.opacity = 1;
+      p.mesh.position.copy(worldPos);
+      p.mesh.position.y = Math.max(0.15, p.mesh.position.y);
+      p.vel.set(randRange(-1.4, 1.4), randRange(1.6, 3.2), randRange(-1.4, 1.4));
+      this.world.scene.add(p.mesh);
+      this._blood.push(p);
+    }
+  }
+
+  _spawnCorpseFromPlayer(playerId) {
+    const src = this.players[playerId];
+    const corpse = src.model.clone(true);
+
+    // Collect materials and make them independent so we can fade safely.
+    const mats = new Set();
+    corpse.traverse((o) => {
+      if (!o.isMesh) return;
+      o.material = o.material.clone();
+      mats.add(o.material);
+    });
+
+    corpse.position.set(src.pos.x, src.pos.y, src.pos.z);
+    corpse.rotation.set(0, src.yaw, 0);
+
+    // Random limb flops for a goofy “ragdoll”.
+    const names = [`${playerId}-head`, `${playerId}-armL`, `${playerId}-armR`, `${playerId}-legL`, `${playerId}-legR`];
+    for (const n of names) {
+      const m = corpse.getObjectByName(n);
+      if (!m) continue;
+      m.rotation.x += randRange(-1.4, 1.0);
+      m.rotation.z += randRange(-0.8, 0.8);
+    }
+
+    this.world.scene.add(corpse);
+    this._corpses.push({
+      group: corpse,
+      t: 0,
+      vel: new THREE.Vector3(randRange(-0.8, 0.8), 0, randRange(-0.8, 0.8)),
+      rot0: new THREE.Vector3(0, src.yaw, 0),
+      rot1: new THREE.Vector3(randRange(1.2, 1.7), src.yaw, randRange(-1.0, 1.0)),
+      _mats: Array.from(mats)
+    });
   }
 
   _handleTaskToggles() {
@@ -907,7 +1110,9 @@ export class GameApp {
     this._raycaster.set(origin, dir);
     this._raycaster.far = 120;
 
-    const hits = this._raycaster.intersectObjects([target.hitbox, ...this.world.raycastMeshes], true);
+    const rayTargets = [...this.world.raycastMeshes];
+    if (!target.dead) rayTargets.unshift(target.hitbox);
+    const hits = this._raycaster.intersectObjects(rayTargets, true);
     const hit = hits[0];
     const end = this._tmpHitEnd;
     if (hit) end.copy(hit.point);
@@ -922,6 +1127,11 @@ export class GameApp {
       if (pos) this.audio.playOneShot(assetUrl('assets/audio/sfx/explosion.ogg'), { volume: 0.8, fallback: 'explosion' });
     } else if (hit && hit.object === target.hitbox) {
       const dmg = damageForWeapon(w.type);
+      if (!target.dead && target.invulnTimer <= 0) {
+        target.flashRed(1.0);
+        this._spawnDamageNumber(target.getEyePosition(this._tmpV2).add(new THREE.Vector3(0, 0.18, 0)), dmg);
+        this._spawnBloodParticles(hit.point, w.type === WeaponType.SNIPER ? 16 : 10);
+      }
       const died = target.takeDamage(dmg);
       if (died) this._onKill(shooterId, targetId);
     }
@@ -945,7 +1155,9 @@ export class GameApp {
 
     this._raycaster.set(origin, dir);
     this._raycaster.far = 2.0;
-    const hits = this._raycaster.intersectObjects([target.hitbox, ...this.world.raycastMeshes], true);
+    const rayTargets = [...this.world.raycastMeshes];
+    if (!target.dead) rayTargets.unshift(target.hitbox);
+    const hits = this._raycaster.intersectObjects(rayTargets, true);
     const hit = hits[0];
     if (hit?.object?.userData?.isBarrel) {
       this.weaponViews[shooterId].triggerKnifeHitSwing();
@@ -954,7 +1166,13 @@ export class GameApp {
       this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6, fallback: 'pistol' });
     } else if (hit && hit.object === target.hitbox) {
       this.weaponViews[shooterId].triggerKnifeHitSwing();
-      const died = target.takeDamage(damageForWeapon(WeaponType.KNIFE));
+      const dmg = damageForWeapon(WeaponType.KNIFE);
+      if (!target.dead && target.invulnTimer <= 0) {
+        target.flashRed(1.0);
+        this._spawnDamageNumber(target.getEyePosition(this._tmpV2).add(new THREE.Vector3(0, 0.18, 0)), dmg);
+        this._spawnBloodParticles(hit.point, 12);
+      }
+      const died = target.takeDamage(dmg);
       if (died) this._onKill(shooterId, targetId);
       this.audio.playOneShot(assetUrl('assets/audio/sfx/knife.ogg'), { volume: 0.6, fallback: 'pistol' });
     } else {
@@ -967,6 +1185,10 @@ export class GameApp {
   _onKill(killerId, victimId) {
     // Death SFX (everyone hears).
     this.audio.playOneShot(assetUrl('assets/audio/sfx/death.ogg'), { volume: 0.7, fallback: 'death' });
+    // Spawn a temporary corpse (ragdoll-ish) at the death position.
+    this._spawnCorpseFromPlayer(victimId);
+    // UI: skull pop for the killer.
+    this._showKillPop(killerId);
     this.scores[killerId] += 1;
     if (this.scores[killerId] >= WIN_KILLS) {
       this._enterWin(killerId);
