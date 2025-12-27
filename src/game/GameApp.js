@@ -11,7 +11,7 @@ import { WeatherSystem } from './WeatherSystem.js';
 import { clamp, dist2, randRange } from './math.js';
 
 const WIN_KILLS = 10;
-const BUILD_TAG = 'barrels-v2'; // simple visual confirmation on Pages
+const BUILD_TAG = 'inventory-v1'; // simple visual confirmation on Pages
 
 // Vite sets BASE_URL correctly for GitHub Pages (e.g. "/Cookiez/") and for relative builds ("./").
 // IMPORTANT: Never hardcode "/assets/..." for GitHub Pages project sites, because "/assets"
