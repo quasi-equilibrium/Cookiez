@@ -562,6 +562,8 @@ export class WeatherSystem {
     if (!this.inventoryItems.includes(WeatherType.BOMBER)) this.inventoryItems.push(WeatherType.BOMBER);
     this.ui.vipMsg.textContent = 'VIP eşyalar envantere geldi';
     this._syncUI();
+    // Make it obvious: open inventory immediately so user sees items.
+    this.openInventory();
   }
 }
 
