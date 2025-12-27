@@ -634,6 +634,13 @@ body.menu-mode .inv-bag {
 .menu.in-game .menu-center {
   display: none;
 }
+.menu.in-game #pack-btn,
+.menu.in-game .corner-btn,
+.menu.in-game #pack-overlay,
+.menu.in-game #code-overlay,
+.menu.in-game #vip-overlay {
+  display: none !important;
+}
 
 .corner-btn {
   position: absolute;

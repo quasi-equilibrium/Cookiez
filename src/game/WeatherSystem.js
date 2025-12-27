@@ -35,6 +35,10 @@ export class WeatherSystem {
 
     // Bomber effect state.
     this._nextBomb = 1.2;
+
+    // Rain visuals.
+    this._rain = null; // {points, geo, positions, count}
+    this._rainT = 0;
   }
 
   mount() {
@@ -145,23 +149,25 @@ export class WeatherSystem {
       scene.fog = new THREE.FogExp2(0x06060b, 0.02);
       this.world.setLighting({ ambient: 0.22, hemi: 0.25, key: 0.5, tint: 0xff7a1a });
     } else if (type === WeatherType.VOLCANO) {
-      scene.background = new THREE.Color('#120106');
-      scene.fog = new THREE.FogExp2(0x220008, 0.015);
-      this.world.setLighting({ ambient: 0.25, hemi: 0.25, key: 0.55, tint: 0xff5a2f });
+      // Only visual lava look (no damage handled in GameApp via multiplier).
+      scene.background = new THREE.Color('#2a0a00');
+      scene.fog = new THREE.FogExp2(0x2a0a00, 0.02);
+      this.world.setLighting({ ambient: 0.22, hemi: 0.25, key: 0.6, tint: 0xff7a1a });
     } else if (type === WeatherType.CLOUD) {
-      scene.background = new THREE.Color('#0a0f18');
+      scene.background = new THREE.Color('#070a10');
       scene.fog = new THREE.FogExp2(0x0a0f18, 0.022);
-      this.world.setLighting({ ambient: 0.22, hemi: 0.2, key: 0.45, tint: 0x9fb2c9 });
+      this.world.setLighting({ ambient: 0.2, hemi: 0.18, key: 0.38, tint: 0x9fb2c9 });
     } else if (type === WeatherType.LIGHTNING) {
-      scene.background = new THREE.Color('#060915');
-      scene.fog = new THREE.FogExp2(0x060915, 0.02);
-      this.world.setLighting({ ambient: 0.18, hemi: 0.2, key: 0.4, tint: 0x63b3ff });
-      this._ensureLightningLight();
+      // STORM: dark + rain + yellow lightning every ~2s.
+      scene.background = new THREE.Color('#070a12');
+      scene.fog = new THREE.FogExp2(0x070a12, 0.024);
+      this.world.setLighting({ ambient: 0.16, hemi: 0.18, key: 0.35, tint: 0xffd24a });
+      this._ensureLightningLight(0xffd24a);
     } else {
       // SUN
-      scene.background = new THREE.Color('#05060a');
+      scene.background = new THREE.Color('#0b1530');
       scene.fog = null;
-      this.world.setLighting({ ambient: 0.5, hemi: 0.55, key: 0.78, tint: 0xffd48a });
+      this.world.setLighting({ ambient: 0.72, hemi: 0.75, key: 0.95, tint: 0xfff0b5 });
     }
   }
 
@@ -170,16 +176,16 @@ export class WeatherSystem {
 
     // Lightning.
     if (this.selected === WeatherType.LIGHTNING) {
-      this._ensureLightningLight();
+      this._ensureLightningLight(0xffd24a);
       this._nextLightning -= dt;
       if (this._nextLightning <= 0) {
-        this._nextLightning = 2.8 + Math.random() * 4.0;
-        this._lightningT = 0.18;
-        this.audio?.playOneShot?.(`${import.meta.env.BASE_URL}assets/audio/sfx/thunder.ogg`, { volume: 0.7, fallback: 'explosion' });
+        this._nextLightning = 2.0;
+        this._lightningT = 0.16;
+        this.audio?.playOneShot?.(`${import.meta.env.BASE_URL}assets/audio/sfx/thunder.ogg`, { volume: 0.6, fallback: 'explosion' });
       }
       if (this._lightningT > 0) {
         this._lightningT -= dt;
-        const a = Math.max(0, this._lightningT / 0.18);
+        const a = Math.max(0, this._lightningT / 0.16);
         this._flash.intensity = a * 6.0;
       } else if (this._flash) {
         this._flash.intensity = 0;
@@ -192,7 +198,8 @@ export class WeatherSystem {
     if (this.selected === WeatherType.BOMBER) {
       this._nextBomb -= dt;
       if (this._nextBomb <= 0) {
-        this._nextBomb = 0.9 + Math.random() * 1.4;
+        // Slower spawn rate to keep FPS stable.
+        this._nextBomb = 2.6 + Math.random() * 2.4;
         const marginX = 16;
         const marginZ = 14;
         const x = (Math.random() - 0.5) * (this.world.roomW - marginX * 2);
@@ -200,13 +207,77 @@ export class WeatherSystem {
         this.world.spawnBomb?.(x, z);
       }
     }
+
+    // Rain: active during CLOUD and STORM.
+    const raining = this.selected === WeatherType.CLOUD || this.selected === WeatherType.LIGHTNING;
+    if (raining) {
+      this._ensureRain();
+      this._updateRain(dt);
+      this.audio?.startLoop?.('rain', 'rain', { volume: 0.28 });
+    } else {
+      this.audio?.stopLoop?.('rain');
+      if (this._rain?.points) this._rain.points.visible = false;
+    }
   }
 
-  _ensureLightningLight() {
-    if (this._flash) return;
-    this._flash = new THREE.DirectionalLight(0xb7dcff, 0);
+  _ensureLightningLight(colorHex = 0xb7dcff) {
+    if (this._flash) {
+      this._flash.color.setHex(colorHex);
+      return;
+    }
+    this._flash = new THREE.DirectionalLight(colorHex, 0);
     this._flash.position.set(10, 20, 5);
     this.world.scene.add(this._flash);
+  }
+
+  _ensureRain() {
+    if (this._rain) {
+      this._rain.points.visible = true;
+      return;
+    }
+    const count = 1400;
+    const positions = new Float32Array(count * 3);
+    const w = this.world.roomW;
+    const d = this.world.roomD;
+    for (let i = 0; i < count; i++) {
+      positions[i * 3 + 0] = (Math.random() - 0.5) * w;
+      positions[i * 3 + 1] = 2 + Math.random() * 16;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * d;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0x9ecbff,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false
+    });
+    const points = new THREE.Points(geo, mat);
+    points.frustumCulled = false;
+    points.renderOrder = 10;
+    this.world.scene.add(points);
+    this._rain = { points, geo, positions, count };
+  }
+
+  _updateRain(dt) {
+    const r = this._rain;
+    if (!r) return;
+    this._rainT += dt;
+    const w = this.world.roomW;
+    const d = this.world.roomD;
+    const fall = 18;
+    for (let i = 0; i < r.count; i++) {
+      const yIdx = i * 3 + 1;
+      r.positions[yIdx] -= fall * dt;
+      if (r.positions[yIdx] <= 0.2) {
+        // respawn at top
+        r.positions[i * 3 + 0] = (Math.random() - 0.5) * w;
+        r.positions[yIdx] = 10 + Math.random() * 10;
+        r.positions[i * 3 + 2] = (Math.random() - 0.5) * d;
+      }
+    }
+    r.geo.attributes.position.needsUpdate = true;
   }
 
   _randomWeatherStandard() {
