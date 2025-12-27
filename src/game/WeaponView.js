@@ -23,7 +23,8 @@ export class WeaponView {
       [WeaponType.KNIFE]: buildKnife(),
       [WeaponType.PISTOL]: buildPistol(),
       [WeaponType.VANDAL]: buildVandal(),
-      [WeaponType.SNIPER]: buildSniper()
+      [WeaponType.SNIPER]: buildSniper(),
+      [WeaponType.BOTTLE]: buildBottle()
     };
     for (const m of Object.values(this.models)) {
       m.visible = false;
@@ -319,6 +320,37 @@ function buildSniper() {
   g.scale.setScalar(1.22);
   g.position.set(0.0, -0.04, 0);
   g.rotation.y = -0.16;
+  return g;
+}
+
+function buildBottle() {
+  const g = new THREE.Group();
+  // Gold-ish bottle.
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0xffd24a,
+    roughness: 0.25,
+    metalness: 0.6,
+    emissive: 0xffb13b,
+    emissiveIntensity: 0.12
+  });
+  const neckMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1f2a,
+    roughness: 0.7,
+    metalness: 0.1
+  });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.22, 14), glassMat);
+  body.position.set(0.12, 0.02, -0.12);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.09, 12), glassMat);
+  neck.position.set(0.12, 0.15, -0.12);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.02, 10), neckMat);
+  cap.position.set(0.12, 0.2, -0.12);
+
+  g.add(body, neck, cap);
+  g.scale.setScalar(1.25);
+  g.position.set(0.08, -0.02, 0.02);
+  g.rotation.y = -0.25;
+  g.rotation.z = 0.35;
   return g;
 }
 

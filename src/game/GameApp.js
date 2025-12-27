@@ -737,9 +737,15 @@ export class GameApp {
     const p2 = this.players.p2;
     const near1 = this._nearestArcade(p1);
     const near2 = this._nearestArcade(p2);
+    const bottle1 = this._nearestBottle(p1);
+    const bottle2 = this._nearestBottle(p2);
 
     // P1 toggle: E
     if (this.input.wasPressed('KeyE')) {
+      if (bottle1) {
+        this._tryPickBottle('p1', bottle1.id);
+        return;
+      }
       if (this.taskSystem.isOpen('p1')) {
         this.taskSystem.close('p1');
         p1.controlsLocked = false;
@@ -750,6 +756,10 @@ export class GameApp {
 
     // P2 toggle: Right click
     if (this.input.mouse.rightPressed) {
+      if (bottle2) {
+        this._tryPickBottle('p2', bottle2.id);
+        return;
+      }
       if (this.taskSystem.isOpen('p2')) {
         this.taskSystem.close('p2');
         p2.controlsLocked = false;
@@ -757,6 +767,36 @@ export class GameApp {
         this._tryOpenTask('p2', near2.taskIndex);
       }
     }
+  }
+
+  _nearestBottle(player) {
+    let best = null;
+    let bestD2 = Infinity;
+    for (const b of this.world.bottles ?? []) {
+      if (b.picked) continue;
+      const d2 = dist2(player.pos, b.position);
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = b;
+      }
+    }
+    if (best && bestD2 <= 2.3 * 2.3) return best;
+    return null;
+  }
+
+  _tryPickBottle(playerId, bottleId) {
+    const p = this.players[playerId];
+    if (p.dead) return;
+    if (p.controlsLocked) return;
+    if (this.weapons[playerId].type === WeaponType.BOTTLE) return;
+
+    const ok = this.world.pickBottle?.(bottleId);
+    if (!ok) return;
+
+    p.hasBottle = true;
+    p.bottlePrevWeapon = this.weapons[playerId].type;
+    this.weapons[playerId].setWeapon(WeaponType.BOTTLE);
+    this.weaponViews[playerId].setWeapon(WeaponType.BOTTLE);
   }
 
   _tryOpenTask(playerId, taskIndex) {
@@ -914,6 +954,10 @@ export class GameApp {
 
     // Re-equip based on tasks completed.
     this.weapons[deadId].setWeapon(weaponForTaskLevel(p.taskLevel));
+    this.weaponViews[deadId].setWeapon(this.weapons[deadId].type);
+    // Drop bottle on death.
+    p.hasBottle = false;
+    p.bottlePrevWeapon = null;
   }
 
   _pickSpawnFarFromEnemy(enemy) {
@@ -937,10 +981,10 @@ export class GameApp {
     if (p.dead) return;
     const yawSpeed = 2.2;
     const pitchSpeed = 1.8;
-    if (this.input.isDown('KeyQ')) p.yaw -= yawSpeed * dt;
-    // User request: H = turn right (more obvious). Keep F also.
-    if (this.input.isDown('KeyH')) p.yaw += yawSpeed * dt * 1.45;
-    if (this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
+    // Align with mouse look (P2): yaw decreases when turning right.
+    if (this.input.isDown('KeyQ')) p.yaw += yawSpeed * dt; // left
+    if (this.input.isDown('KeyH')) p.yaw -= yawSpeed * dt * 1.45; // right (strong)
+    if (this.input.isDown('KeyF')) p.yaw -= yawSpeed * dt; // right (alt)
     if (this.input.isDown('KeyT')) p.pitch += pitchSpeed * dt;
     if (this.input.isDown('KeyG')) p.pitch -= pitchSpeed * dt;
     p.pitch = clamp(p.pitch, -1.35, 1.35);
@@ -964,6 +1008,7 @@ export class GameApp {
     const w = this.weapons[playerId];
 
     let speed = 6.0;
+    if (w.type === WeaponType.BOTTLE || p.hasBottle) speed *= 1.15;
     if (w.type === WeaponType.SNIPER && w.sniperZoom01 > 0.2) speed *= 0.55;
 
     // Input mapping.
@@ -1160,9 +1205,54 @@ export class GameApp {
     if (!pressed) return;
     if (w.type === WeaponType.KNIFE) {
       this._knifeAttack(shooterId, targetId);
+    } else if (w.type === WeaponType.BOTTLE) {
+      this._bottleAttack(shooterId, targetId);
     } else {
       this._shootHitscan(shooterId, targetId);
     }
+  }
+
+  _breakBottle(shooterId) {
+    const p = this.players[shooterId];
+    const prev = p.bottlePrevWeapon ?? WeaponType.KNIFE;
+    p.hasBottle = false;
+    p.bottlePrevWeapon = null;
+    this.weapons[shooterId].setWeapon(prev);
+    this.weaponViews[shooterId].setWeapon(this.weapons[shooterId].type);
+  }
+
+  _bottleAttack(shooterId, targetId) {
+    const shooter = this.players[shooterId];
+    const target = this.players[targetId];
+    const w = this.weapons[shooterId];
+    if (!w.canShoot()) return;
+
+    const origin = shooter.getEyePosition(this._tmpV);
+    const dir = shooter.getAimDir(this._tmpV2);
+
+    this._raycaster.set(origin, dir);
+    this._raycaster.far = 2.0;
+
+    const rayTargets = [...this.world.raycastMeshes];
+    if (!target.dead) rayTargets.unshift(target.hitbox);
+    const hit = this._raycaster.intersectObjects(rayTargets, true)[0];
+
+    if (hit && hit.object === target.hitbox) {
+      const dmg = damageForWeapon(WeaponType.BOTTLE);
+      if (!target.dead && target.invulnTimer <= 0) {
+        target.flashRed(1.0);
+        this._spawnDamageNumber(target.getEyePosition(this._tmpV2).add(new THREE.Vector3(0, 0.18, 0)), dmg);
+        this._spawnBloodParticles(hit.point, 14);
+      }
+      const died = target.takeDamage(dmg);
+      this.audio.playOneShot(assetUrl('assets/audio/sfx/glass_break.ogg'), { volume: 0.75, fallback: 'glass' });
+      this._breakBottle(shooterId);
+      this.weaponViews[shooterId].triggerKnifeHitSwing();
+      if (died) this._onKill(shooterId, targetId);
+    } else {
+      this.weaponViews[shooterId].triggerKnifeWhiffSwing();
+    }
+    w.consumeShot();
   }
 
   _shootHitscan(shooterId, targetId) {

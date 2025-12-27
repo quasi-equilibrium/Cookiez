@@ -4,7 +4,8 @@ export const WeaponType = Object.freeze({
   KNIFE: 'Knife',
   PISTOL: 'Pistol',
   VANDAL: 'Vandal',
-  SNIPER: 'Sniper'
+  SNIPER: 'Sniper',
+  BOTTLE: 'Bottle'
 });
 
 export function weaponForTaskLevel(level) {
@@ -25,6 +26,8 @@ export function damageForWeapon(type) {
       return 50;
     case WeaponType.SNIPER:
       return 100;
+    case WeaponType.BOTTLE:
+      return 70;
     default:
       return 10;
   }
@@ -56,6 +59,9 @@ export class WeaponState {
     if (type === WeaponType.KNIFE) {
       this.mag = 0;
       this.reserve = 0;
+    } else if (type === WeaponType.BOTTLE) {
+      this.mag = 0;
+      this.reserve = 0;
     } else if (type === WeaponType.PISTOL) {
       this.mag = 12;
       this.reserve = 48;
@@ -79,11 +85,13 @@ export class WeaponState {
     if (this.reloadTimer > 0) return false;
     if (this.cooldown > 0) return false;
     if (this.type === WeaponType.KNIFE) return true;
+    if (this.type === WeaponType.BOTTLE) return true;
     return this.mag > 0;
   }
 
   startReload() {
     if (this.type === WeaponType.KNIFE) return false;
+    if (this.type === WeaponType.BOTTLE) return false;
     if (this.reloadTimer > 0) return false;
     if (this.mag >= this.getMaxMag()) return false;
     if (this.reserve <= 0) return false;
@@ -114,9 +122,10 @@ export class WeaponState {
   }
 
   consumeShot() {
-    if (this.type !== WeaponType.KNIFE) this.mag = Math.max(0, this.mag - 1);
+    if (this.type !== WeaponType.KNIFE && this.type !== WeaponType.BOTTLE) this.mag = Math.max(0, this.mag - 1);
     // Fire rate: pistol/vandal faster, sniper slower, knife has swing delay.
     if (this.type === WeaponType.KNIFE) this.cooldown = 0.45;
+    else if (this.type === WeaponType.BOTTLE) this.cooldown = 0.55;
     else if (this.type === WeaponType.PISTOL) this.cooldown = 0.22;
     else if (this.type === WeaponType.VANDAL) this.cooldown = 0.11;
     else if (this.type === WeaponType.SNIPER) this.cooldown = 0.85;

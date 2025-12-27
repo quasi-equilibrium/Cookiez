@@ -598,6 +598,48 @@ export class AudioManager {
       osc.stop(t + 0.16);
       return;
     }
+
+    if (type === 'glass') {
+      // Glass break: short noisy burst + high ping.
+      const t = this.ctx.currentTime;
+
+      const noiseBuf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.12), this.ctx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = noiseBuf;
+
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.setValueAtTime(1200, t);
+
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(volume * 0.22, t + 0.01);
+      g.gain.linearRampToValueAtTime(0, t + 0.12);
+
+      noise.connect(hp);
+      hp.connect(g);
+      g.connect(this.master);
+
+      const ping = this.ctx.createOscillator();
+      ping.type = 'triangle';
+      ping.frequency.setValueAtTime(2200, t);
+      ping.frequency.exponentialRampToValueAtTime(900, t + 0.08);
+      const gp = this.ctx.createGain();
+      gp.gain.setValueAtTime(0, t);
+      gp.gain.linearRampToValueAtTime(volume * 0.14, t + 0.01);
+      gp.gain.linearRampToValueAtTime(0, t + 0.1);
+      ping.connect(gp);
+      gp.connect(this.master);
+
+      noise.start(t);
+      ping.start(t);
+      noise.stop(t + 0.13);
+      ping.stop(t + 0.12);
+      return;
+    }
   }
 }
 
