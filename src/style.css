@@ -136,6 +136,12 @@ body {
   font-size: 22px;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
 }
+.weather-pill[data-weather='yilbasi']::after {
+  content: '❄';
+  font-size: 24px;
+  color: #eaf2ff;
+  text-shadow: 0 0 18px rgba(160, 200, 255, 0.45);
+}
 
 .inv-bag {
   position: fixed;
@@ -299,6 +305,12 @@ body.menu-mode .inv-bag {
   content: '💣';
   font-size: 34px;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
+}
+.wicon[data-weather='yilbasi']::after {
+  content: '❄';
+  font-size: 34px;
+  color: #eaf2ff;
+  text-shadow: 0 0 18px rgba(160, 200, 255, 0.55);
 }
 .inv-item.selected {
   outline: 2px solid rgba(55, 230, 161, 0.55);

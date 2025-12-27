@@ -86,6 +86,7 @@ export class GameApp {
     this._blood = [];
     this._corpses = [];
     this._firstKillDone = false;
+    this._bonusWeapon = { p1: null, p2: null };
 
     this.config = {
       mouseFireMode: 'p2' // 'p2' | 'both'
@@ -739,9 +740,15 @@ export class GameApp {
     const near2 = this._nearestArcade(p2);
     const bottle1 = this._nearestBottle(p1);
     const bottle2 = this._nearestBottle(p2);
+    const gift1 = this._nearestGift(p1);
+    const gift2 = this._nearestGift(p2);
 
     // P1 toggle: E
     if (this.input.wasPressed('KeyE')) {
+      if (gift1) {
+        this._tryOpenGift('p1');
+        return;
+      }
       if (bottle1) {
         this._tryPickBottle('p1', bottle1.id);
         return;
@@ -756,6 +763,10 @@ export class GameApp {
 
     // P2 toggle: Right click
     if (this.input.mouse.rightPressed) {
+      if (gift2) {
+        this._tryOpenGift('p2');
+        return;
+      }
       if (bottle2) {
         this._tryPickBottle('p2', bottle2.id);
         return;
@@ -782,6 +793,35 @@ export class GameApp {
     }
     if (best && bestD2 <= 2.3 * 2.3) return best;
     return null;
+  }
+
+  _nearestGift(player) {
+    // Gift is a world object; World decides if any is near.
+    // We reuse the same distance threshold as bottles.
+    for (const g of this.world.gifts ?? []) {
+      if (g.state !== 'ready') continue;
+      const d2 = dist2(player.pos, g.mesh.position);
+      if (d2 <= 2.4 * 2.4) return g;
+    }
+    return null;
+  }
+
+  _grantBonusWeapon(playerId, type) {
+    this._bonusWeapon[playerId] = type;
+    this.weapons[playerId].setWeapon(type);
+    this.weaponViews[playerId].setWeapon(type);
+  }
+
+  _tryOpenGift(playerId) {
+    const p = this.players[playerId];
+    if (p.dead || p.controlsLocked) return;
+    const ok = this.world.openGiftNear?.(p.pos);
+    if (!ok) return;
+
+    // Random weapon: Laser is rare.
+    const roll = Math.random();
+    const type = roll < 0.06 ? WeaponType.LASER : WeaponType.SHOTGUN;
+    this._grantBonusWeapon(playerId, type);
   }
 
   _tryPickBottle(playerId, bottleId) {
@@ -952,8 +992,9 @@ export class GameApp {
     p.respawnAt(spawn);
     p.setYawPitch(randRange(-Math.PI, Math.PI), 0);
 
-    // Re-equip based on tasks completed.
-    this.weapons[deadId].setWeapon(weaponForTaskLevel(p.taskLevel));
+    // Re-equip based on tasks completed (or bonus weapon).
+    const bonus = this._bonusWeapon[deadId];
+    this.weapons[deadId].setWeapon(bonus ?? weaponForTaskLevel(p.taskLevel));
     this.weaponViews[deadId].setWeapon(this.weapons[deadId].type);
     // Drop bottle on death.
     p.hasBottle = false;
@@ -1201,6 +1242,20 @@ export class GameApp {
       return;
     }
 
+    // Laser: fire on press (rare).
+    if (w.type === WeaponType.LASER) {
+      if (!pressed) return;
+      this._shootLaser(shooterId, targetId);
+      return;
+    }
+
+    // Shotgun: fire on press.
+    if (w.type === WeaponType.SHOTGUN) {
+      if (!pressed) return;
+      this._shootShotgun(shooterId, targetId);
+      return;
+    }
+
     // Other weapons: fire on press.
     if (!pressed) return;
     if (w.type === WeaponType.KNIFE) {
@@ -1210,6 +1265,107 @@ export class GameApp {
     } else {
       this._shootHitscan(shooterId, targetId);
     }
+  }
+
+  _shootShotgun(shooterId, targetId) {
+    const shooter = this.players[shooterId];
+    const target = this.players[targetId];
+    const w = this.weapons[shooterId];
+    if (!w.canShoot()) {
+      if (w.mag === 0) w.startReload();
+      return;
+    }
+
+    const origin = shooter.getEyePosition(this._tmpV);
+    const baseDir = shooter.getAimDir(this._tmpV2).clone();
+
+    this.weaponViews[shooterId].triggerShot({ weaponType: w.type });
+
+    // 7 pellets
+    const pellets = 7;
+    let hitTarget = false;
+    let bestHitPoint = null;
+    for (let i = 0; i < pellets; i++) {
+      const dir = baseDir.clone();
+      dir.x += randRange(-0.06, 0.06);
+      dir.y += randRange(-0.04, 0.04);
+      dir.z += randRange(-0.06, 0.06);
+      dir.normalize();
+
+      this._raycaster.set(origin, dir);
+      this._raycaster.far = 40;
+      const rayTargets = [...this.world.raycastMeshes];
+      if (!target.dead) rayTargets.unshift(target.hitbox);
+      const hit = this._raycaster.intersectObjects(rayTargets, true)[0];
+      const end = hit ? hit.point : origin.clone().addScaledVector(dir, 40);
+      this.weaponViews[shooterId].showTracer({ weaponType: w.type, origin, end });
+      if (hit && hit.object === target.hitbox) {
+        hitTarget = true;
+        bestHitPoint = bestHitPoint ?? hit.point.clone();
+      }
+    }
+
+    if (hitTarget && !target.dead && target.invulnTimer <= 0) {
+      // Close vs far damage.
+      const dist = origin.distanceTo(target.getEyePosition(this._tmpV2));
+      const dmg = dist <= 8 ? 60 : 30;
+      target.flashRed(1.0);
+      this._spawnDamageNumber(target.getEyePosition(this._tmpV2).add(new THREE.Vector3(0, 0.18, 0)), dmg);
+      if (bestHitPoint) this._spawnBloodParticles(bestHitPoint, 12);
+      if (target.takeDamage(dmg)) this._onKill(shooterId, targetId);
+    }
+
+    w.consumeShot();
+    // SFX uses existing pistol fallback if no asset.
+    this.audio.playOneShot(assetUrl('assets/audio/sfx/shotgun.ogg'), { volume: 0.65, fallback: 'vandal' });
+  }
+
+  _shootLaser(shooterId, targetId) {
+    const shooter = this.players[shooterId];
+    const target = this.players[targetId];
+    const w = this.weapons[shooterId];
+    if (!w.canShoot()) {
+      if (w.mag === 0) w.startReload();
+      return;
+    }
+
+    const origin = shooter.getEyePosition(this._tmpV);
+    const dir = shooter.getAimDir(this._tmpV2);
+    this._raycaster.set(origin, dir);
+    this._raycaster.far = 120;
+
+    const rayTargets = [...this.world.raycastMeshes];
+    if (!target.dead) rayTargets.unshift(target.hitbox);
+    const hit = this._raycaster.intersectObjects(rayTargets, true)[0];
+    const end = hit ? hit.point : origin.clone().addScaledVector(dir, 120);
+
+    // Visual: red long laser.
+    this.weaponViews[shooterId].triggerShot({ weaponType: w.type });
+    this.weaponViews[shooterId].showTracer({ weaponType: WeaponType.SNIPER, origin, end });
+
+    // Small explosion visual + 2 lava blocks.
+    this.world._spawnFireBlock?.(end.x + 0.6, end.z, { lifetime: 9.0, withLight: false });
+    this.world._spawnFireBlock?.(end.x - 0.6, end.z, { lifetime: 9.0, withLight: false });
+
+    // Direct hit damage + small blast damage.
+    if (hit && hit.object === target.hitbox) {
+      const dmg = 60;
+      if (!target.dead && target.invulnTimer <= 0) {
+        target.flashRed(1.0);
+        this._spawnDamageNumber(target.getEyePosition(this._tmpV2).add(new THREE.Vector3(0, 0.18, 0)), dmg);
+        this._spawnBloodParticles(end, 14);
+      }
+      const died = target.takeDamage(dmg);
+      // splash
+      if (!died) {
+        const splash = 10;
+        target.takeDamage(splash);
+      }
+      if (died) this._onKill(shooterId, targetId);
+    }
+
+    w.consumeShot();
+    this.audio.playOneShot(assetUrl('assets/audio/sfx/laser.ogg'), { volume: 0.55, fallback: 'sniper' });
   }
 
   _breakBottle(shooterId) {

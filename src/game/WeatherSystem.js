@@ -6,7 +6,8 @@ export const WeatherType = Object.freeze({
   CLOUD: 'cloud',
   LIGHTNING: 'lightning',
   ALL_GOLD: 'all_gold',
-  BOMBER: 'bomber'
+  BOMBER: 'bomber',
+  YILBASI: 'yilbasi'
 });
 
 export class WeatherSystem {
@@ -39,6 +40,13 @@ export class WeatherSystem {
     // Rain visuals.
     this._rain = null; // {points, geo, positions, count}
     this._rainT = 0;
+
+    // Snow visuals (yılbaşı).
+    this._snow = null; // {points, geo, positions, count}
+    this._snowT = 0;
+    this._yilbasiGiftT = 0;
+    this._yilbasiGiftAt = 0;
+    this._yilbasiGiftDone = false;
   }
 
   mount() {
@@ -168,6 +176,16 @@ export class WeatherSystem {
       this.world.setLighting({ ambient: 0.16, hemi: 0.18, key: 0.35, tint: 0xffd24a });
       this._ensureLightningLight(0xffd24a);
       this.world.setLavaVisible?.(false);
+    } else if (type === WeatherType.YILBASI) {
+      scene.background = new THREE.Color('#0c1322');
+      scene.fog = new THREE.FogExp2(0x0c1322, 0.022);
+      this.world.setLighting({ ambient: 0.55, hemi: 0.55, key: 0.75, tint: 0xeaf2ff });
+      this.world.applyTheme?.('snow');
+      this.world.setLavaVisible?.(false);
+      // Reset gift timer each time you apply the weather.
+      this._yilbasiGiftT = 0;
+      this._yilbasiGiftAt = 30 + Math.random() * 10; // 30..40s
+      this._yilbasiGiftDone = false;
     } else {
       // SUN
       scene.background = new THREE.Color('#0b1530');
@@ -223,6 +241,40 @@ export class WeatherSystem {
     } else {
       this.audio?.stopLoop?.('rain');
       if (this._rain?.points) this._rain.points.visible = false;
+    }
+
+    // Snow: active during YILBASI.
+    const snowing = this.selected === WeatherType.YILBASI;
+    if (snowing) {
+      this._ensureSnow();
+      this._updateSnow(dt);
+      this.audio?.startLoop?.('snow', 'snow', { volume: 0.22 });
+
+      // Gift spawn + announcement.
+      this._yilbasiGiftT += dt;
+      if (!this._yilbasiGiftDone && this._yilbasiGiftT >= this._yilbasiGiftAt) {
+        this._yilbasiGiftDone = true;
+        const line = 'ooooo noel baba geldi ve haritaya hediye bıraktı';
+        // Toast (reuse the global toast element).
+        if (this.ui.toastMsg) {
+          this.ui.toastMsg.textContent = line;
+          this.ui.toastMsg.classList.remove('show');
+          // eslint-disable-next-line no-unused-expressions
+          this.ui.toastMsg.offsetWidth;
+          this.ui.toastMsg.classList.add('show');
+          setTimeout(() => this.ui.toastMsg.classList.remove('show'), 3000);
+        }
+        this.audio?.speak?.(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
+
+        const marginX = 18;
+        const marginZ = 16;
+        const x = (Math.random() - 0.5) * (this.world.roomW - marginX * 2);
+        const z = (Math.random() - 0.5) * (this.world.roomD - marginZ * 2);
+        this.world.spawnGift?.(x, z);
+      }
+    } else {
+      this.audio?.stopLoop?.('snow');
+      if (this._snow?.points) this._snow.points.visible = false;
     }
   }
 
@@ -287,8 +339,62 @@ export class WeatherSystem {
   }
 
   _randomWeatherStandard() {
-    const all = [WeatherType.VOLCANO, WeatherType.SUN, WeatherType.CLOUD, WeatherType.LIGHTNING];
+    const all = [WeatherType.VOLCANO, WeatherType.SUN, WeatherType.CLOUD, WeatherType.LIGHTNING, WeatherType.YILBASI];
     return all[Math.floor(Math.random() * all.length)];
+  }
+
+  _ensureSnow() {
+    if (this._snow) {
+      this._snow.points.visible = true;
+      return;
+    }
+    const count = 900;
+    const positions = new Float32Array(count * 3);
+    const w = this.world.roomW;
+    const d = this.world.roomD;
+    for (let i = 0; i < count; i++) {
+      positions[i * 3 + 0] = (Math.random() - 0.5) * w;
+      positions[i * 3 + 1] = 2 + Math.random() * 18;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * d;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.14,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false
+    });
+    const points = new THREE.Points(geo, mat);
+    points.frustumCulled = false;
+    points.renderOrder = 10;
+    this.world.scene.add(points);
+    this._snow = { points, geo, positions, count };
+  }
+
+  _updateSnow(dt) {
+    const s = this._snow;
+    if (!s) return;
+    this._snowT += dt;
+    const w = this.world.roomW;
+    const d = this.world.roomD;
+    const fall = 4.2;
+    for (let i = 0; i < s.count; i++) {
+      const xIdx = i * 3 + 0;
+      const yIdx = i * 3 + 1;
+      const zIdx = i * 3 + 2;
+      // gentle drift
+      s.positions[xIdx] += Math.sin(this._snowT * 0.6 + i) * 0.02;
+      s.positions[zIdx] += Math.cos(this._snowT * 0.5 + i) * 0.02;
+      s.positions[yIdx] -= fall * dt;
+      if (s.positions[yIdx] <= 0.2) {
+        s.positions[xIdx] = (Math.random() - 0.5) * w;
+        s.positions[yIdx] = 10 + Math.random() * 12;
+        s.positions[zIdx] = (Math.random() - 0.5) * d;
+      }
+    }
+    s.geo.attributes.position.needsUpdate = true;
   }
 
   _syncUI() {

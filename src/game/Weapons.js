@@ -5,7 +5,9 @@ export const WeaponType = Object.freeze({
   PISTOL: 'Pistol',
   VANDAL: 'Vandal',
   SNIPER: 'Sniper',
-  BOTTLE: 'Bottle'
+  BOTTLE: 'Bottle',
+  SHOTGUN: 'Shotgun',
+  LASER: 'Laser'
 });
 
 export function weaponForTaskLevel(level) {
@@ -28,6 +30,10 @@ export function damageForWeapon(type) {
       return 100;
     case WeaponType.BOTTLE:
       return 70;
+    case WeaponType.SHOTGUN:
+      return 60;
+    case WeaponType.LASER:
+      return 60;
     default:
       return 10;
   }
@@ -62,6 +68,12 @@ export class WeaponState {
     } else if (type === WeaponType.BOTTLE) {
       this.mag = 0;
       this.reserve = 0;
+    } else if (type === WeaponType.SHOTGUN) {
+      this.mag = 6;
+      this.reserve = 24;
+    } else if (type === WeaponType.LASER) {
+      this.mag = 3;
+      this.reserve = 9;
     } else if (type === WeaponType.PISTOL) {
       this.mag = 12;
       this.reserve = 48;
@@ -78,6 +90,8 @@ export class WeaponState {
     if (this.type === WeaponType.PISTOL) return 12;
     if (this.type === WeaponType.VANDAL) return 30;
     if (this.type === WeaponType.SNIPER) return 5;
+    if (this.type === WeaponType.SHOTGUN) return 6;
+    if (this.type === WeaponType.LASER) return 3;
     return 0;
   }
 
@@ -97,7 +111,16 @@ export class WeaponState {
     if (this.reserve <= 0) return false;
 
     // Slightly different per weapon.
-    const t = this.type === WeaponType.SNIPER ? 1.6 : this.type === WeaponType.VANDAL ? 1.35 : 1.1;
+    const t =
+      this.type === WeaponType.SNIPER
+        ? 1.6
+        : this.type === WeaponType.VANDAL
+          ? 1.35
+          : this.type === WeaponType.SHOTGUN
+            ? 1.75
+            : this.type === WeaponType.LASER
+              ? 1.9
+              : 1.1;
     this.reloadTimer = t;
     return true;
   }
@@ -129,6 +152,8 @@ export class WeaponState {
     else if (this.type === WeaponType.PISTOL) this.cooldown = 0.22;
     else if (this.type === WeaponType.VANDAL) this.cooldown = 0.11;
     else if (this.type === WeaponType.SNIPER) this.cooldown = 0.85;
+    else if (this.type === WeaponType.SHOTGUN) this.cooldown = 0.75;
+    else if (this.type === WeaponType.LASER) this.cooldown = 0.9;
   }
 }
 

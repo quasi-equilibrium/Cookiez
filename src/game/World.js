@@ -29,6 +29,9 @@ export class World {
     /** @type {Array<{id:number, mesh:THREE.Mesh, position:THREE.Vector3, picked:boolean}>} */
     this.bottles = [];
 
+    /** @type {Array<{id:number, mesh:THREE.Object3D, state:'falling'|'ready'|'opened', vel:THREE.Vector3}>} */
+    this.gifts = [];
+
     /** @type {Array<{id:number, mesh:THREE.Mesh, light:THREE.Light|null, box:THREE.Box3, t:number}>} */
     this.fireBlocks = [];
 
@@ -108,6 +111,12 @@ export class World {
         m.emissiveIntensity = 0.45;
         m.metalness = 0.65;
         m.roughness = 0.25;
+      } else if (mode === 'snow') {
+        m.color?.setHex?.(0xeaf2ff);
+        if (m.emissive) m.emissive.setHex(0xffffff);
+        m.emissiveIntensity = 0.08;
+        m.metalness = 0.05;
+        m.roughness = 0.95;
       } else {
         if (base.color) m.color.copy(base.color);
         if (base.emissive && m.emissive) m.emissive.copy(base.emissive);
@@ -200,6 +209,54 @@ export class World {
     this._buildSpawnPoints(roomW, roomD);
     this._addLavaPools(roomW, roomD);
     this._addBottles(roomW, roomD, 14);
+  }
+
+  spawnGift(x, z) {
+    // Only one gift at a time to keep it simple.
+    if (this.gifts.some((g) => g.state !== 'opened')) return;
+
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.1 });
+    const ribbonMat = new THREE.MeshStandardMaterial({
+      color: 0xff3333,
+      roughness: 0.45,
+      metalness: 0.15,
+      emissive: 0xff3333,
+      emissiveIntensity: 0.08
+    });
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.9), baseMat);
+    const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.62, 0.92), ribbonMat);
+    const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.12), ribbonMat);
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.045, 10, 16), ribbonMat);
+    bow.rotation.x = Math.PI / 2;
+    bow.position.y = 0.32;
+
+    const gift = new THREE.Group();
+    gift.add(box, r1, r2, bow);
+    gift.position.set(x, 18, z);
+    gift.rotation.y = randRange(-Math.PI, Math.PI);
+    this.scene.add(gift);
+
+    const id = this.gifts.length;
+    this.gifts.push({ id, mesh: gift, state: 'falling', vel: new THREE.Vector3(randRange(-0.05, 0.05), -0.7, randRange(-0.05, 0.05)) });
+  }
+
+  openGiftNear(pos) {
+    let best = null;
+    let bestD2 = Infinity;
+    for (const g of this.gifts) {
+      if (g.state !== 'ready') continue;
+      const dx = g.mesh.position.x - pos.x;
+      const dz = g.mesh.position.z - pos.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = g;
+      }
+    }
+    if (!best || bestD2 > 2.4 * 2.4) return false;
+    best.state = 'opened';
+    best.mesh.visible = false;
+    return true;
   }
 
   pickBottle(id) {
@@ -295,6 +352,20 @@ export class World {
         const mat = m.material;
         if (!mat || Array.isArray(mat)) continue;
         mat.emissiveIntensity = flick * 2.2;
+      }
+    }
+
+    // Gift falling/update.
+    for (let i = this.gifts.length - 1; i >= 0; i--) {
+      const g = this.gifts[i];
+      if (g.state === 'falling') {
+        g.vel.y -= 2.2 * dt;
+        g.mesh.position.addScaledVector(g.vel, dt);
+        if (g.mesh.position.y <= 0.4) {
+          g.mesh.position.y = 0.4;
+          g.state = 'ready';
+          g.vel.set(0, 0, 0);
+        }
       }
     }
 

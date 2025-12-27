@@ -24,7 +24,9 @@ export class WeaponView {
       [WeaponType.PISTOL]: buildPistol(),
       [WeaponType.VANDAL]: buildVandal(),
       [WeaponType.SNIPER]: buildSniper(),
-      [WeaponType.BOTTLE]: buildBottle()
+      [WeaponType.BOTTLE]: buildBottle(),
+      [WeaponType.SHOTGUN]: buildShotgun(),
+      [WeaponType.LASER]: buildLaser()
     };
     for (const m of Object.values(this.models)) {
       m.visible = false;
@@ -217,6 +219,8 @@ export class WeaponView {
     if (weaponType === WeaponType.PISTOL) return new THREE.Vector3(0.18, 0.05, -0.24);
     if (weaponType === WeaponType.VANDAL) return new THREE.Vector3(0.38, 0.06, -0.34);
     if (weaponType === WeaponType.SNIPER) return new THREE.Vector3(0.62, 0.08, -0.42);
+    if (weaponType === WeaponType.SHOTGUN) return new THREE.Vector3(0.34, 0.06, -0.3);
+    if (weaponType === WeaponType.LASER) return new THREE.Vector3(0.5, 0.06, -0.38);
     return new THREE.Vector3(0.12, 0.04, -0.18);
   }
 }
@@ -351,6 +355,45 @@ function buildBottle() {
   g.position.set(0.08, -0.02, 0.02);
   g.rotation.y = -0.25;
   g.rotation.z = 0.35;
+  return g;
+}
+
+function buildShotgun() {
+  const g = new THREE.Group();
+  const mainMat = new THREE.MeshStandardMaterial({ color: 0x6f7a8a, roughness: 0.55, metalness: 0.25 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x151922, roughness: 0.9, metalness: 0.15 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.12, 0.16), mainMat);
+  body.position.set(0.2, 0.08, -0.14);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 12), darkMat);
+  barrel.rotation.z = Math.PI / 2;
+  barrel.position.set(0.5, 0.1, -0.16);
+  const pump = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.14), darkMat);
+  pump.position.set(0.38, 0.02, -0.14);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.14), darkMat);
+  stock.position.set(-0.06, 0.08, -0.14);
+  g.add(body, barrel, pump, stock);
+  g.scale.setScalar(1.18);
+  g.position.set(0.02, -0.04, 0);
+  g.rotation.y = -0.2;
+  return g;
+}
+
+function buildLaser() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff4fd7, roughness: 0.35, metalness: 0.35, emissive: 0xff3333, emissiveIntensity: 0.25 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.85, metalness: 0.1 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.16), bodyMat);
+  body.position.set(0.22, 0.08, -0.14);
+  const emitter = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 14), darkMat);
+  emitter.rotation.z = Math.PI / 2;
+  emitter.position.set(0.54, 0.09, -0.16);
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 14), bodyMat);
+  coil.rotation.z = Math.PI / 2;
+  coil.position.set(0.32, 0.16, -0.14);
+  g.add(body, emitter, coil);
+  g.scale.setScalar(1.22);
+  g.position.set(0.0, -0.04, 0);
+  g.rotation.y = -0.18;
   return g;
 }
 
