@@ -55,6 +55,11 @@ export class World {
     this._lavaOn = false;
     this._lavaT = 0;
 
+    // Hack bits visuals (floating 10111000).
+    /** @type {Array<THREE.Sprite>} */
+    this.hackBits = [];
+    this._hackOn = false;
+
     this.elevators = {
       // Anchors will be recomputed from room size in build().
       p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
@@ -208,6 +213,7 @@ export class World {
     this._addElevators();
     this._buildSpawnPoints(roomW, roomD);
     this._addLavaPools(roomW, roomD);
+    this._ensureHackBits();
     this._addBottles(roomW, roomD, 14);
   }
 
@@ -356,6 +362,17 @@ export class World {
       }
     }
 
+    // Hack bits drift.
+    if (this._hackOn && this.hackBits.length) {
+      const t = Date.now() * 0.001;
+      for (const s of this.hackBits) {
+        if (!s.visible) continue;
+        s.position.x += Math.sin(t + s.userData._seed) * dt * 0.18;
+        s.position.z += Math.cos(t * 1.3 + s.userData._seed) * dt * 0.18;
+        s.material.opacity = 0.25 + (Math.sin(t * 1.5 + s.userData._seed) * 0.5 + 0.5) * 0.55;
+      }
+    }
+
     // Gift falling/update.
     for (let i = this.gifts.length - 1; i >= 0; i--) {
       const g = this.gifts[i];
@@ -442,6 +459,11 @@ export class World {
     for (const m of this.lavaPools) m.visible = this._lavaOn;
   }
 
+  setHackBitsVisible(on) {
+    this._hackOn = !!on;
+    for (const s of this.hackBits) s.visible = this._hackOn;
+  }
+
   _addLavaPools(roomW, roomD) {
     // Big visible lava patches around the arena.
     // They are visuals only (no collision, no damage).
@@ -477,6 +499,41 @@ export class World {
     };
 
     for (let i = 0; i < spots.length; i++) makePool(spots[i], 4.6 + (i % 3) * 2.2);
+  }
+
+  _ensureHackBits() {
+    if (this.hackBits.length) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '1000 44px ui-monospace, ui-sans-serif, system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#37e6a1';
+    ctx.fillText('10111000', canvas.width / 2, canvas.height / 2);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+
+    for (let i = 0; i < 28; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.6, depthWrite: false });
+      const s = new THREE.Sprite(mat);
+      s.scale.set(2.3, 1.1, 1);
+      s.position.set(
+        randRange(-this.roomW / 2 + 12, this.roomW / 2 - 12),
+        randRange(1.2, 6.5),
+        randRange(-this.roomD / 2 + 10, this.roomD / 2 - 10)
+      );
+      s.userData._seed = Math.random() * 1000;
+      s.visible = false;
+      this.scene.add(s);
+      this.hackBits.push(s);
+    }
   }
 
   setLighting({ ambient, hemi, key, tint }) {

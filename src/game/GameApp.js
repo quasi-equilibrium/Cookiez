@@ -87,6 +87,8 @@ export class GameApp {
     this._corpses = [];
     this._firstKillDone = false;
     this._bonusWeapon = { p1: null, p2: null };
+    this._cheatsEnabled = false;
+    this._hackUsed = { one: false, two: false, three: false };
 
     this.config = {
       mouseFireMode: 'p2' // 'p2' | 'both'
@@ -108,6 +110,10 @@ export class GameApp {
       onInventoryClose: () => {
         this.players.p1.controlsLocked = false;
         this.players.p2.controlsLocked = false;
+      },
+      onHackEnabled: () => {
+        this._cheatsEnabled = true;
+        this._showToast('hile açıldı (fake)');
       }
     });
     this.weather.mount();
@@ -539,6 +545,7 @@ export class GameApp {
 
     // Gameplay updates.
     if (this.state === 'ELEVATOR' || this.state === 'PLAY') {
+      this._handleHackKeys();
       this._updatePlayers(dt);
       this.taskSystem.update(dt);
       this._updateHUD();
@@ -553,6 +560,41 @@ export class GameApp {
 
     // World-space combat FX (damage numbers, particles, corpses).
     this._updateCombatFx(dt);
+  }
+
+  _handleHackKeys() {
+    if (!this._cheatsEnabled) return;
+    if (this.state !== 'PLAY') return;
+
+    // (1) give both sniper
+    if (this.input.wasPressed('Digit1')) {
+      this.players.p1.taskLevel = 3;
+      this.players.p2.taskLevel = 3;
+      this.weapons.p1.setWeapon(WeaponType.SNIPER);
+      this.weapons.p2.setWeapon(WeaponType.SNIPER);
+      this.weaponViews.p1.setWeapon(this.weapons.p1.type);
+      this.weaponViews.p2.setWeapon(this.weapons.p2.type);
+      this._showToast('HACK (1): iki oyuncuya da SNIPER verildi');
+    }
+
+    // (2) meteor + fire
+    if (this.input.wasPressed('Digit2')) {
+      const line = 'ooooooooaaaaaaaa meteor gelioooo';
+      this._showToast(line);
+      this.audio.speak(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
+      // Use existing bomber-style bomb but heavier: spawn a few bombs quickly.
+      for (let i = 0; i < 3; i++) {
+        const x = randRange(-this.world.roomW / 2 + 20, this.world.roomW / 2 - 20);
+        const z = randRange(-this.world.roomD / 2 + 16, this.world.roomD / 2 - 16);
+        this.world.spawnBomb?.(x, z);
+      }
+    }
+
+    // (3) add hack weather item
+    if (this.input.wasPressed('Digit3')) {
+      this.weather.grantHackWeather?.();
+      this._showToast('HACK (3): hack hava durumu eklendi');
+    }
   }
 
   _updateCombatFx(dt) {
