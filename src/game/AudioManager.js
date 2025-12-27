@@ -12,6 +12,22 @@ export class AudioManager {
     this._loops = new Map();
   }
 
+  speak(text, { lang = 'tr-TR', rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) {
+    // Uses built-in browser TTS (separate from WebAudio).
+    try {
+      if (!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = lang;
+      u.rate = rate;
+      u.pitch = pitch;
+      u.volume = Math.max(0, Math.min(1, volume));
+      window.speechSynthesis.cancel(); // avoid stacking
+      window.speechSynthesis.speak(u);
+    } catch {
+      // ignore
+    }
+  }
+
   async ensure() {
     if (this.ctx) return;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -341,6 +357,55 @@ export class AudioManager {
       });
       return;
     }
+
+    if (type === 'rain') {
+      // Soft rain hiss using a filtered square + random modulation (cheap).
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 2400;
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1800;
+      bp.Q.value = 0.3;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      osc.connect(bp);
+      bp.connect(g);
+      g.connect(this.master);
+      osc.start();
+
+      let alive = true;
+      const interval = setInterval(() => {
+        if (!this.ctx || !alive) return;
+        const t = this.ctx.currentTime;
+        // Small random flutter.
+        osc.frequency.setValueAtTime(1800 + Math.random() * 1600, t);
+        bp.frequency.setValueAtTime(1200 + Math.random() * 1300, t);
+        const target = volume * 0.06 + Math.random() * volume * 0.04;
+        g.gain.cancelScheduledValues(t);
+        g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.linearRampToValueAtTime(target, t + 0.04);
+      }, 70);
+
+      this._loops.set(key, {
+        stop: (fadeMs = 180) => {
+          alive = false;
+          clearInterval(interval);
+          try {
+            const t = this.ctx?.currentTime ?? 0;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+            osc.stop(t + fadeMs / 1000 + 0.02);
+          } catch {
+            // ignore
+          }
+        }
+      });
+      // Fade in.
+      g.gain.linearRampToValueAtTime(volume * 0.08, this.ctx.currentTime + 0.2);
+      return;
+    }
   }
 
   stopLoop(key) {
@@ -501,6 +566,24 @@ export class AudioManager {
       g.connect(this.master);
       osc.start(t);
       osc.stop(t + 0.28);
+      return;
+    }
+
+    if (type === 'hangup') {
+      // Phone hangup: quick descending beep + click.
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(900, t);
+      osc.frequency.exponentialRampToValueAtTime(220, t + 0.12);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(volume * 0.25, t + 0.01);
+      g.gain.linearRampToValueAtTime(0, t + 0.14);
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.16);
       return;
     }
   }

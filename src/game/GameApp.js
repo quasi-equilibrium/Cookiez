@@ -69,7 +69,8 @@ export class GameApp {
       doorOpen01: 0,
       fightMsgTimer: 0,
       _lastShownInt: 10,
-      doorSfxPlayed: false
+      doorSfxPlayed: false,
+      introSpoken: false
     };
 
     this.scores = { p1: 0, p2: 0 };
@@ -294,6 +295,12 @@ export class GameApp {
       this._ui.menu.classList.add('in-game');
       document.body.classList.remove('menu-mode');
     }
+
+    // Menu-only UI: bag + inventory overlay must not show in game.
+    this._ui.invBag?.classList.toggle('hidden', !isMenu);
+    if (!isMenu) {
+      this._ui.invOverlay?.classList.add('hidden');
+    }
   }
 
   _toMenu() {
@@ -345,25 +352,24 @@ export class GameApp {
     this._ui.centerMsg.textContent = 'ELEVATOR 10';
 
     // Reset elevator timer and close doors.
-    this.elevator.t = 10;
+    this.elevator.t = 16;
     this.elevator.doorOpen01 = 0;
     this.elevator.fightMsgTimer = 0;
-    this.elevator._lastShownInt = 10;
+    this.elevator._lastShownInt = 16;
     this.elevator.doorSfxPlayed = false;
+    this.elevator.introSpoken = false;
     this.world.setElevatorDoorOpen('p1', 0);
     this.world.setElevatorDoorOpen('p2', 0);
     this.world.setElevatorCabinAlpha('p1', 1);
     this.world.setElevatorCabinAlpha('p2', 1);
-    this.world.setElevatorDisplay('p1', '10');
-    this.world.setElevatorDisplay('p2', '10');
+    this.world.setElevatorDisplay('p1', '16');
+    this.world.setElevatorDisplay('p2', '16');
 
     // Spawn both players inside their elevators.
     this._spawnInElevator();
 
-    // Start music at game start (Mario-ish vibe). Runs even if no audio assets exist.
-    this.audio.startLoop('music', 'mario', { volume: 0.22 });
-    // Ambient file is optional; if missing we simply keep the chiptune.
-    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.18, fallback: null });
+    // No mario music (user request). Keep ambient optional only.
+    this.audio.playAmbientLoop(assetUrl('assets/audio/music/arcade_ambient.ogg'), { volume: 0.16, fallback: null });
     // Extra elevator hum layer (stops when doors fully open / fight starts).
     this.audio.startLoop('elevator', 'elevatorHum', { volume: 0.55 });
 
@@ -457,6 +463,15 @@ export class GameApp {
 
     // Elevator phase countdown.
     if (this.state === 'ELEVATOR') {
+      // Speak intro once near the start of the elevator ride.
+      if (!this.elevator.introSpoken && this.elevator.t <= 15.2) {
+        this.elevator.introSpoken = true;
+        this.audio.speak('Bu oyun tamamen Cookiez tarafından yapıldı. İyi oyunlar.', { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
+        setTimeout(() => {
+          this.audio.playOneShot(assetUrl('assets/audio/sfx/phone_hangup.ogg'), { volume: 0.6, fallback: 'hangup' });
+        }, 2600);
+      }
+
       this.elevator.t = Math.max(0, this.elevator.t - dt);
       const shown = Math.ceil(this.elevator.t);
       if (shown !== this.elevator._lastShownInt) {
@@ -825,7 +840,8 @@ export class GameApp {
     this.world.update(dt);
 
     // Damage: 25 HP per second while touching a fire block.
-    const dps = 25;
+    // Volcano request: lava is visual only (no damage).
+    const dps = this.weather?.selected === 'volcano' ? 0 : 25;
     const fires = this.world.fireBlocks;
     const anyNear =
       fires.length &&

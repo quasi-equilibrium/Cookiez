@@ -26,7 +26,7 @@ export class World {
     /** @type {Array<{id:number, mesh:THREE.Mesh, collider:any, exploded:boolean}>} */
     this.barrels = [];
 
-    /** @type {Array<{id:number, mesh:THREE.Mesh, light:THREE.Light, box:THREE.Box3, t:number}>} */
+    /** @type {Array<{id:number, mesh:THREE.Mesh, light:THREE.Light|null, box:THREE.Box3, t:number}>} */
     this.fireBlocks = [];
 
     /** @type {Array<{mesh:THREE.Mesh, t:number, maxT:number}>} */
@@ -38,6 +38,10 @@ export class World {
     /** @type {Array<THREE.Object3D>} */
     this._themeTargets = [];
     this._themeMode = 'default';
+
+    // Performance caps (bomber can create lots of objects).
+    this._maxFireBlocks = 36;
+    this._maxBombs = 8;
 
     this.elevators = {
       // Anchors will be recomputed from room size in build().
@@ -245,7 +249,7 @@ export class World {
 
           // Explosion visual.
           const fx = new THREE.Mesh(
-            new THREE.SphereGeometry(0.7, 10, 8),
+            new THREE.SphereGeometry(0.7, 8, 6),
             new THREE.MeshBasicMaterial({
               color: 0xffb13b,
               transparent: true,
@@ -268,7 +272,7 @@ export class World {
             new THREE.Vector3(o * 0.75, 0, o * 0.75),
             new THREE.Vector3(-o * 0.75, 0, -o * 0.75)
           ];
-          for (const off of offsets) this._spawnFireBlock(pos.x + off.x, pos.z + off.z);
+          for (const off of offsets) this._spawnFireBlock(pos.x + off.x, pos.z + off.z, { lifetime: 7.0, withLight: false });
         }
       }
     }
@@ -501,6 +505,8 @@ export class World {
   }
 
   spawnBomb(x, z) {
+    // Cap bombs to avoid build-up.
+    if (this.bombs.length >= this._maxBombs) return;
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.18, 12, 10),
       new THREE.MeshStandardMaterial({
@@ -644,7 +650,7 @@ export class World {
     return pos;
   }
 
-  _spawnFireBlock(x, z) {
+  _spawnFireBlock(x, z, { lifetime = 20.0, withLight = true } = {}) {
     const mat = new THREE.MeshStandardMaterial({
       color: 0x2a1a06,
       emissive: 0xff9a2f,
@@ -656,12 +662,23 @@ export class World {
     mesh.position.set(x, 0.09, z);
     this.scene.add(mesh);
 
-    const light = new THREE.PointLight(0xffa24a, 2.0, 6.0, 2.0);
-    light.position.set(x, 0.55, z);
-    this.scene.add(light);
+    let light = null;
+    if (withLight) {
+      light = new THREE.PointLight(0xffa24a, 2.0, 6.0, 2.0);
+      light.position.set(x, 0.55, z);
+      this.scene.add(light);
+    }
 
     const box = new THREE.Box3().setFromObject(mesh);
-    this.fireBlocks.push({ id: this.fireBlocks.length, mesh, light, box, t: 20.0 });
+    this.fireBlocks.push({ id: this.fireBlocks.length, mesh, light, box, t: lifetime });
+
+    // Cap fire blocks (remove oldest) to keep FPS stable.
+    while (this.fireBlocks.length > this._maxFireBlocks) {
+      const old = this.fireBlocks.shift();
+      if (!old) break;
+      this.scene.remove(old.mesh);
+      if (old.light) this.scene.remove(old.light);
+    }
   }
 
   _addElevators() {
