@@ -10,12 +10,14 @@ export const WeatherType = Object.freeze({
 const STORAGE_KEY = 'arcade_duel_weather';
 
 export class WeatherSystem {
-  constructor({ ui, world, audio }) {
+  constructor({ ui, world, audio, onInventoryOpen, onInventoryClose }) {
     this.ui = ui;
     this.world = world;
     this.audio = audio;
+    this.onInventoryOpen = onInventoryOpen;
+    this.onInventoryClose = onInventoryClose;
 
-    this.inventoryItem = null; // last opened item
+    this.inventoryItems = []; // items opened from packs (max 2 opens)
     this.selected = null;
 
     // Lightning effect state.
@@ -36,19 +38,11 @@ export class WeatherSystem {
     });
     this.ui.packBig?.addEventListener('click', () => this.openPack());
 
-    // Inventory UI.
-    this.ui.invItem?.addEventListener('click', () => {
-      // Show select button for current item.
-      if (!this.inventoryItem) return;
-      // If already selected, do nothing.
-      if (this.selected === this.inventoryItem) return;
-      this.ui.invSelect?.classList.toggle('hidden', false);
-    });
-    this.ui.invSelect?.addEventListener('click', () => {
-      if (!this.inventoryItem) return;
-      this.selected = this.inventoryItem;
-      this._save();
-      this._syncUI();
+    // Inventory UI (bag -> full-screen overlay).
+    this.ui.invBag?.addEventListener('click', () => this.openInventory());
+    this.ui.invClose?.addEventListener('click', () => this.closeInventory());
+    this.ui.invOverlay?.addEventListener('click', (e) => {
+      if (e.target === this.ui.invOverlay) this.closeInventory();
     });
   }
 
@@ -56,6 +50,7 @@ export class WeatherSystem {
     this.ui.packOverlay?.classList.remove('hidden');
     this.ui.packResult?.classList.add('hidden');
     this.ui.packBig?.classList.remove('opened');
+    this._syncPackStatus();
   }
 
   closePackModal() {
@@ -65,10 +60,26 @@ export class WeatherSystem {
   openPack() {
     if (!this.ui.packBig) return;
     if (this.ui.packBig.classList.contains('opened')) return;
+
+    // Limit: only 2 opens total.
+    if (this.inventoryItems.length >= 2) {
+      this._syncPackStatus(true);
+      // Also show a clear message in the result area.
+      if (this.ui.packResultItem) this.ui.packResultItem.textContent = 'PARANIZ KALMADI';
+      this.ui.packResult?.classList.remove('hidden');
+      return;
+    }
+
     this.ui.packBig.classList.add('opened');
 
-    const got = this._randomWeather();
-    this.inventoryItem = got;
+    // Prefer a new item if possible (avoid duplicates when there are choices).
+    let got = this._randomWeather();
+    const all = [WeatherType.VOLCANO, WeatherType.SUN, WeatherType.CLOUD, WeatherType.LIGHTNING];
+    for (let tries = 0; tries < 8; tries++) {
+      if (!this.inventoryItems.includes(got) || this.inventoryItems.length >= all.length) break;
+      got = this._randomWeather();
+    }
+    this.inventoryItems.push(got);
     this._save();
 
     // Reveal result after "tear".
@@ -79,11 +90,23 @@ export class WeatherSystem {
     }, 650);
   }
 
+  openInventory() {
+    document.exitPointerLock?.();
+    this.ui.invOverlay?.classList.remove('hidden');
+    this.onInventoryOpen?.();
+    this._syncInventoryOverlay();
+  }
+
+  closeInventory() {
+    this.ui.invOverlay?.classList.add('hidden');
+    this.onInventoryClose?.();
+  }
+
   applyToWorld() {
     // Apply selected weather to scene visuals.
     const type = this.selected ?? WeatherType.SUN;
     this.ui.weatherPill?.classList.remove('hidden');
-    if (this.ui.weatherPill) this.ui.weatherPill.textContent = `WEATHER: ${type.toUpperCase()}`;
+    if (this.ui.weatherPill) this.ui.weatherPill.dataset.weather = type;
 
     const scene = this.world.scene;
 
@@ -104,7 +127,8 @@ export class WeatherSystem {
       // SUN
       scene.background = new THREE.Color('#05060a');
       scene.fog = null;
-      this.world.setLighting({ ambient: 0.35, hemi: 0.45, key: 0.65, tint: 0xffd48a });
+      // Brighter/cleaner look for "SUN".
+      this.world.setLighting({ ambient: 0.5, hemi: 0.55, key: 0.78, tint: 0xffd48a });
     }
   }
 
@@ -144,36 +168,67 @@ export class WeatherSystem {
   }
 
   _syncUI() {
-    // Inventory visibility.
-    if (this.ui.inventory) this.ui.inventory.classList.remove('hidden');
+    // Bag is always visible (inventory can be empty).
+    this.ui.invBag?.classList.remove('hidden');
+    this._syncPackStatus();
+    this._syncInventoryOverlay();
+  }
 
-    // Item slot always visible; show placeholder if empty.
-    if (!this.inventoryItem) {
-      if (this.ui.invItem) {
-        this.ui.invItem.textContent = '';
-        this.ui.invItem.dataset.weather = '';
-        this.ui.invItem.classList.add('empty');
-      }
-      this.ui.invSelect?.classList.add('hidden');
-      this.ui.invCheck?.classList.add('hidden');
+  _syncPackStatus(noMoney = false) {
+    if (!this.ui.packStatus) return;
+    const remaining = Math.max(0, 2 - this.inventoryItems.length);
+    if (noMoney || remaining === 0) {
+      this.ui.packStatus.textContent = 'PARANIZ KALMADI';
+      this.ui.packStatus.classList.add('no-money');
       return;
     }
+    this.ui.packStatus.classList.remove('no-money');
+    this.ui.packStatus.textContent = `${remaining}/2 PACK HAKKIN VAR`;
+  }
 
-    if (this.ui.invItem) {
-      this.ui.invItem.textContent = '';
-      this.ui.invItem.dataset.weather = this.inventoryItem;
-      this.ui.invItem.classList.remove('empty');
+  _syncInventoryOverlay() {
+    const grid = this.ui.invGrid;
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const items = this.inventoryItems;
+    const empty = !items || items.length === 0;
+    this.ui.invEmpty?.classList.toggle('hidden', !empty);
+
+    if (empty) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const type = items[i];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `inv-item${this.selected === type ? ' selected' : ''}`;
+      btn.dataset.weather = type;
+
+      const icon = document.createElement('div');
+      icon.className = 'wicon';
+      icon.dataset.weather = type;
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = type.toUpperCase();
+
+      btn.appendChild(icon);
+      btn.appendChild(label);
+
+      btn.addEventListener('click', () => {
+        this.selected = type;
+        this._save();
+        this._syncUI();
+        this.applyToWorld();
+      });
+
+      grid.appendChild(btn);
     }
-
-    // Checkmark if selected.
-    const sel = this.selected === this.inventoryItem;
-    this.ui.invCheck?.classList.toggle('hidden', !sel);
-    this.ui.invSelect?.classList.toggle('hidden', sel);
   }
 
   _save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ inventoryItem: this.inventoryItem, selected: this.selected }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ inventoryItems: this.inventoryItems, selected: this.selected }));
     } catch {
       // ignore
     }
@@ -184,7 +239,7 @@ export class WeatherSystem {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const d = JSON.parse(raw);
-      this.inventoryItem = d.inventoryItem ?? null;
+      this.inventoryItems = Array.isArray(d.inventoryItems) ? d.inventoryItems.slice(0, 2) : [];
       this.selected = d.selected ?? null;
     } catch {
       // ignore
