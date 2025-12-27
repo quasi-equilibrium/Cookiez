@@ -32,6 +32,13 @@ export class World {
     /** @type {Array<{mesh:THREE.Mesh, t:number, maxT:number}>} */
     this.fx = [];
 
+    /** @type {Array<{mesh:THREE.Mesh, vel:THREE.Vector3, state:'falling'|'armed', fuse:number}>} */
+    this.bombs = [];
+
+    /** @type {Array<THREE.Object3D>} */
+    this._themeTargets = [];
+    this._themeMode = 'default';
+
     this.elevators = {
       // Anchors will be recomputed from room size in build().
       p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
@@ -49,6 +56,53 @@ export class World {
 
     // Lights (stored so WeatherSystem can tint them).
     this.lights = { ambient: null, hemi: null, key: null };
+  }
+
+  _registerThemeMesh(obj) {
+    // Clone materials so we can tint safely.
+    obj.traverse?.((o) => {
+      if (!o.isMesh) return;
+      const mesh = /** @type {THREE.Mesh} */ (o);
+      if (mesh.material && !Array.isArray(mesh.material)) {
+        mesh.material = mesh.material.clone();
+        const m = /** @type {THREE.MeshStandardMaterial} */ (mesh.material);
+        m.userData._base = {
+          color: m.color?.clone?.(),
+          emissive: m.emissive?.clone?.(),
+          emissiveIntensity: m.emissiveIntensity ?? 0,
+          metalness: m.metalness ?? 0,
+          roughness: m.roughness ?? 1
+        };
+      }
+      this._themeTargets.push(mesh);
+    });
+  }
+
+  applyTheme(mode) {
+    if (!mode) return;
+    if (mode === this._themeMode) return;
+    this._themeMode = mode;
+
+    for (const o of this._themeTargets) {
+      if (!o.isMesh) continue;
+      const m = o.material;
+      if (!m || Array.isArray(m)) continue;
+      const base = m.userData?._base;
+      if (!base) continue;
+      if (mode === 'gold') {
+        m.color?.setHex?.(0xffd24a);
+        if (m.emissive) m.emissive.setHex(0xffb13b);
+        m.emissiveIntensity = 0.45;
+        m.metalness = 0.65;
+        m.roughness = 0.25;
+      } else {
+        if (base.color) m.color.copy(base.color);
+        if (base.emissive && m.emissive) m.emissive.copy(base.emissive);
+        m.emissiveIntensity = base.emissiveIntensity ?? 0;
+        m.metalness = base.metalness ?? m.metalness;
+        m.roughness = base.roughness ?? m.roughness;
+      }
+    }
   }
 
   build() {
@@ -85,6 +139,7 @@ export class World {
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.receiveShadow = false;
     scene.add(floor);
+    this._registerThemeMesh(floor);
 
     // Walls (4 thin boxes) + colliders.
     const wallMat = new THREE.MeshStandardMaterial({
@@ -98,6 +153,7 @@ export class World {
       mesh.position.set(x, y, z);
       scene.add(mesh);
       this._addColliderFromMesh(mesh, 'wall');
+      this._registerThemeMesh(mesh);
       return mesh;
     };
     // Z walls
@@ -163,6 +219,59 @@ export class World {
         this.fx.splice(i, 1);
       }
     }
+
+    // Update bombs (bomber weather).
+    for (let i = this.bombs.length - 1; i >= 0; i--) {
+      const b = this.bombs[i];
+      if (b.state === 'falling') {
+        b.vel.y -= 12 * dt;
+        b.mesh.position.addScaledVector(b.vel, dt);
+        if (b.mesh.position.y <= 0.25) {
+          b.mesh.position.y = 0.25;
+          b.state = 'armed';
+          b.fuse = 2.0;
+          b.vel.set(0, 0, 0);
+        }
+      } else {
+        b.fuse -= dt;
+        if (b.mesh.material?.emissive) {
+          const blink = b.fuse < 0.7 ? (Math.sin((2 - b.fuse) * 28) * 0.5 + 0.5) : 0.2;
+          b.mesh.material.emissiveIntensity = 0.2 + blink * 1.2;
+        }
+        if (b.fuse <= 0) {
+          const pos = b.mesh.position.clone();
+          this.scene.remove(b.mesh);
+          this.bombs.splice(i, 1);
+
+          // Explosion visual.
+          const fx = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 10, 8),
+            new THREE.MeshBasicMaterial({
+              color: 0xffb13b,
+              transparent: true,
+              opacity: 1,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false
+            })
+          );
+          fx.position.set(pos.x, 0.7, pos.z);
+          this.scene.add(fx);
+          this.fx.push({ mesh: fx, t: 0.35, maxT: 0.35 });
+
+          // 6 fire blocks.
+          const o = 1.3;
+          const offsets = [
+            new THREE.Vector3(o, 0, 0),
+            new THREE.Vector3(-o, 0, 0),
+            new THREE.Vector3(0, 0, o),
+            new THREE.Vector3(0, 0, -o),
+            new THREE.Vector3(o * 0.75, 0, o * 0.75),
+            new THREE.Vector3(-o * 0.75, 0, -o * 0.75)
+          ];
+          for (const off of offsets) this._spawnFireBlock(pos.x + off.x, pos.z + off.z);
+        }
+      }
+    }
   }
 
   setLighting({ ambient, hemi, key, tint }) {
@@ -206,6 +315,7 @@ export class World {
     mesh.position.copy(pos);
     this.scene.add(mesh);
     this._addColliderFromMesh(mesh, tag);
+    this._registerThemeMesh(mesh);
     return mesh;
   }
 
@@ -225,6 +335,7 @@ export class World {
       body.position.set(x, 1.1, z);
       scene.add(body);
       this._addColliderFromMesh(body, 'arcade');
+      this._registerThemeMesh(body);
 
       const screen = new THREE.Mesh(
         new THREE.PlaneGeometry(0.8, 0.6),
@@ -236,6 +347,7 @@ export class World {
       );
       screen.position.set(x, 1.5, z + 0.56);
       scene.add(screen);
+      this._registerThemeMesh(screen);
 
       if (taskIndex != null) {
         this.arcades.push({
@@ -386,6 +498,27 @@ export class World {
 
     // Explosive barrels: lots around the arena.
     this._addBarrels(roomW, roomD, 26);
+  }
+
+  spawnBomb(x, z) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 12, 10),
+      new THREE.MeshStandardMaterial({
+        color: 0x1a1f2a,
+        roughness: 0.65,
+        metalness: 0.25,
+        emissive: 0xff2b2b,
+        emissiveIntensity: 0.2
+      })
+    );
+    mesh.position.set(x, 14, z);
+    this.scene.add(mesh);
+    this.bombs.push({
+      mesh,
+      vel: new THREE.Vector3(randRange(-0.8, 0.8), -randRange(4.5, 7.5), randRange(-0.8, 0.8)),
+      state: 'falling',
+      fuse: 2.0
+    });
   }
 
   _addBarrels(roomW, roomD, count) {

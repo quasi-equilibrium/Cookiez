@@ -117,6 +117,37 @@
 
       <!-- Menu / start transition overlay -->
       <div id="menu" class="menu">
+        <!-- Corner buttons (menu only) -->
+        <button id="vip-btn" class="corner-btn corner-left" type="button" title="VIP">WIP</button>
+        <button id="code-btn" class="corner-btn corner-right" type="button" title="Kod">?</button>
+
+        <!-- Code overlay -->
+        <div id="code-overlay" class="code-overlay hidden">
+          <div class="code-modal">
+            <div class="code-title">kodu giriniz:</div>
+            <div class="code-row">
+              <input id="code-input" class="code-input" type="text" placeholder="..." />
+              <button id="code-submit" class="btn" type="button">OK</button>
+            </div>
+            <div id="code-msg" class="code-msg"></div>
+            <button id="code-close" class="btn" type="button">Kapat</button>
+          </div>
+        </div>
+
+        <!-- VIP overlay -->
+        <div id="vip-overlay" class="code-overlay hidden">
+          <div class="code-modal">
+            <div class="code-title">VIP kodunu giriniz:</div>
+            <div class="code-row">
+              <input id="vip-input" class="code-input" type="text" placeholder="..." />
+              <button id="vip-submit" class="btn" type="button">OK</button>
+            </div>
+            <div id="vip-msg" class="code-msg"></div>
+            <button id="vip-all" class="btn hidden" type="button">ALL VIP</button>
+            <button id="vip-close" class="btn" type="button">Kapat</button>
+          </div>
+        </div>
+
         <div class="menu-center">
           <div class="title">ARCADE DUEL</div>
           <button id="start-btn" class="btn btn-start">START</button>
