@@ -7,7 +7,8 @@ export const WeatherType = Object.freeze({
   LIGHTNING: 'lightning',
   ALL_GOLD: 'all_gold',
   BOMBER: 'bomber',
-  YILBASI: 'yilbasi'
+  YILBASI: 'yilbasi',
+  TUHAFLIKLAR: 'tuhafliklar'
 });
 
 export class WeatherSystem {
@@ -450,7 +451,7 @@ export class WeatherSystem {
     for (const type of items) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      const isVip = type === WeatherType.ALL_GOLD || type === WeatherType.BOMBER;
+      const isVip = type === WeatherType.ALL_GOLD || type === WeatherType.BOMBER || type === WeatherType.TUHAFLIKLAR;
       btn.className = `inv-item${isVip ? ' vip' : ''}${this.selected === type ? ' selected' : ''}`;
       btn.dataset.weather = type;
 
@@ -539,7 +540,7 @@ export class WeatherSystem {
     if (raw === '797500') {
       this._redeemed.add('vip');
       this.ui.vipMsg.textContent =
-        'KODLAR:\n- cookiez → 3 pack hakkı (1 kez)\n- reset → envanteri sıfırlar\nVIP:\n- 797500 → kod listesini gösterir\nALL VIP:\n- all_gold → haritayı altın yapar\n- bomber → bomba yağdırır';
+        'KODLAR:\n- cookiez → 3 pack hakkı (1 kez)\n- reset → envanteri sıfırlar\nVIP:\n- 797500 → kod listesini gösterir\nALL VIP:\n- all_gold → haritayı altın yapar\n- bomber → bomba yağdırır\n- tuhaflıklar → portal/garip mod';
       this.ui.vipAll?.classList.remove('hidden');
       return;
     }
@@ -560,6 +561,7 @@ export class WeatherSystem {
     this._redeemed.add('all_vip');
     if (!this.inventoryItems.includes(WeatherType.ALL_GOLD)) this.inventoryItems.push(WeatherType.ALL_GOLD);
     if (!this.inventoryItems.includes(WeatherType.BOMBER)) this.inventoryItems.push(WeatherType.BOMBER);
+    if (!this.inventoryItems.includes(WeatherType.TUHAFLIKLAR)) this.inventoryItems.push(WeatherType.TUHAFLIKLAR);
     this.ui.vipMsg.textContent = 'VIP eşyalar envantere geldi';
     this._syncUI();
     // Make it obvious: open inventory immediately so user sees items.
