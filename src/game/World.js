@@ -43,6 +43,12 @@ export class World {
     this._maxFireBlocks = 36;
     this._maxBombs = 8;
 
+    // Volcano lava visuals (no gameplay damage).
+    /** @type {Array<THREE.Mesh>} */
+    this.lavaPools = [];
+    this._lavaOn = false;
+    this._lavaT = 0;
+
     this.elevators = {
       // Anchors will be recomputed from room size in build().
       p1: { doorCollider: null, doorMesh: null, display: null, cabin: null, anchor: new THREE.Vector3(-34, 0, 0) },
@@ -189,9 +195,12 @@ export class World {
     this._addArcadesAndProps(roomW, roomD);
     this._addElevators();
     this._buildSpawnPoints(roomW, roomD);
+    this._addLavaPools(roomW, roomD);
   }
 
   update(dt) {
+    this._lavaT += dt;
+
     // Update fire flicker + lifetime.
     for (let i = this.fireBlocks.length - 1; i >= 0; i--) {
       const f = this.fireBlocks[i];
@@ -208,6 +217,17 @@ export class World {
       } else {
         f.mesh.updateMatrixWorld(true);
         f.box.setFromObject(f.mesh);
+      }
+    }
+
+    // Lava shimmer (visual only).
+    if (this._lavaOn && this.lavaPools.length) {
+      const flick = 0.75 + Math.sin(this._lavaT * 2.1) * 0.18 + Math.random() * 0.12;
+      for (const m of this.lavaPools) {
+        if (!m.visible) continue;
+        const mat = m.material;
+        if (!mat || Array.isArray(mat)) continue;
+        mat.emissiveIntensity = flick * 2.2;
       }
     }
 
@@ -276,6 +296,48 @@ export class World {
         }
       }
     }
+  }
+
+  setLavaVisible(on) {
+    this._lavaOn = !!on;
+    for (const m of this.lavaPools) m.visible = this._lavaOn;
+  }
+
+  _addLavaPools(roomW, roomD) {
+    // Big visible lava patches around the arena.
+    // They are visuals only (no collision, no damage).
+    for (const m of this.lavaPools) this.scene.remove(m);
+    this.lavaPools.length = 0;
+
+    const spots = [
+      new THREE.Vector3(-roomW * 0.22, 0.012, -roomD * 0.18),
+      new THREE.Vector3(roomW * 0.18, 0.012, -roomD * 0.22),
+      new THREE.Vector3(-roomW * 0.05, 0.012, roomD * 0.18),
+      new THREE.Vector3(roomW * 0.26, 0.012, roomD * 0.12),
+      new THREE.Vector3(-roomW * 0.3, 0.012, roomD * 0.05),
+      new THREE.Vector3(0, 0.012, -roomD * 0.05),
+      new THREE.Vector3(roomW * 0.05, 0.012, roomD * 0.02)
+    ];
+
+    const makePool = (pos, r) => {
+      const geo = new THREE.CircleGeometry(r, 32);
+      geo.rotateX(-Math.PI / 2);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x2b0a00,
+        emissive: 0xff6a00,
+        emissiveIntensity: 2.0,
+        roughness: 0.18,
+        metalness: 0.0
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      mesh.rotation.y = randRange(-Math.PI, Math.PI);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.lavaPools.push(mesh);
+    };
+
+    for (let i = 0; i < spots.length; i++) makePool(spots[i], 4.6 + (i % 3) * 2.2);
   }
 
   setLighting({ ambient, hemi, key, tint }) {

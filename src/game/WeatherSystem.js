@@ -144,30 +144,36 @@ export class WeatherSystem {
       scene.fog = new THREE.FogExp2(0x2a2205, 0.012);
       this.world.setLighting({ ambient: 0.75, hemi: 0.75, key: 0.95, tint: 0xffd24a });
       this.world.applyTheme?.('gold');
+      this.world.setLavaVisible?.(false);
     } else if (type === WeatherType.BOMBER) {
       scene.background = new THREE.Color('#06060b');
       scene.fog = new THREE.FogExp2(0x06060b, 0.02);
       this.world.setLighting({ ambient: 0.22, hemi: 0.25, key: 0.5, tint: 0xff7a1a });
+      this.world.setLavaVisible?.(false);
     } else if (type === WeatherType.VOLCANO) {
       // Only visual lava look (no damage handled in GameApp via multiplier).
       scene.background = new THREE.Color('#2a0a00');
       scene.fog = new THREE.FogExp2(0x2a0a00, 0.02);
       this.world.setLighting({ ambient: 0.22, hemi: 0.25, key: 0.6, tint: 0xff7a1a });
+      this.world.setLavaVisible?.(true);
     } else if (type === WeatherType.CLOUD) {
       scene.background = new THREE.Color('#070a10');
       scene.fog = new THREE.FogExp2(0x0a0f18, 0.022);
       this.world.setLighting({ ambient: 0.2, hemi: 0.18, key: 0.38, tint: 0x9fb2c9 });
+      this.world.setLavaVisible?.(false);
     } else if (type === WeatherType.LIGHTNING) {
       // STORM: dark + rain + yellow lightning every ~2s.
       scene.background = new THREE.Color('#070a12');
       scene.fog = new THREE.FogExp2(0x070a12, 0.024);
       this.world.setLighting({ ambient: 0.16, hemi: 0.18, key: 0.35, tint: 0xffd24a });
       this._ensureLightningLight(0xffd24a);
+      this.world.setLavaVisible?.(false);
     } else {
       // SUN
       scene.background = new THREE.Color('#0b1530');
       scene.fog = null;
       this.world.setLighting({ ambient: 0.72, hemi: 0.75, key: 0.95, tint: 0xfff0b5 });
+      this.world.setLavaVisible?.(false);
     }
   }
 
@@ -213,7 +219,7 @@ export class WeatherSystem {
     if (raining) {
       this._ensureRain();
       this._updateRain(dt);
-      this.audio?.startLoop?.('rain', 'rain', { volume: 0.28 });
+      this.audio?.startLoop?.('rain', 'rain', { volume: 0.14 });
     } else {
       this.audio?.stopLoop?.('rain');
       if (this._rain?.points) this._rain.points.visible = false;

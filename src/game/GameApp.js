@@ -85,6 +85,7 @@ export class GameApp {
     this._bloodPool = [];
     this._blood = [];
     this._corpses = [];
+    this._firstKillDone = false;
 
     this.config = {
       mouseFireMode: 'p2' // 'p2' | 'both'
@@ -163,6 +164,8 @@ export class GameApp {
       controlsHelp: document.getElementById('controls-help'),
       buildTag: document.getElementById('build-tag'),
       weatherPill: document.getElementById('weather-pill'),
+      killPopGlobal: document.getElementById('kill-pop-global'),
+      toastMsg: document.getElementById('toast-msg'),
 
       invBag: document.getElementById('inv-bag'),
       invOverlay: document.getElementById('inv-overlay'),
@@ -275,6 +278,27 @@ export class GameApp {
     return ui;
   }
 
+  _showGlobalKillPop() {
+    const el = this._ui?.killPopGlobal;
+    if (!el) return;
+    el.classList.remove('show');
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1200);
+  }
+
+  _showToast(msg) {
+    const el = this._ui?.toastMsg;
+    if (!el) return;
+    el.textContent = String(msg);
+    el.classList.remove('show');
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
   _showKillPop(killerId) {
     const el = this._ui?.[killerId]?.killPop;
     if (!el) return;
@@ -380,6 +404,7 @@ export class GameApp {
   _resetRound() {
     this.scores.p1 = 0;
     this.scores.p2 = 0;
+    this._firstKillDone = false;
 
     // Task progression persists for the whole round (otherwise tasks feel pointless).
     // If you want "every respawn resets to knife", reset taskLevel on respawn instead.
@@ -913,8 +938,9 @@ export class GameApp {
     const yawSpeed = 2.2;
     const pitchSpeed = 1.8;
     if (this.input.isDown('KeyQ')) p.yaw -= yawSpeed * dt;
-    // Keep both for comfort: user requested H = turn right; F also works.
-    if (this.input.isDown('KeyH') || this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
+    // User request: H = turn right (more obvious). Keep F also.
+    if (this.input.isDown('KeyH')) p.yaw += yawSpeed * dt * 1.45;
+    if (this.input.isDown('KeyF')) p.yaw += yawSpeed * dt;
     if (this.input.isDown('KeyT')) p.pitch += pitchSpeed * dt;
     if (this.input.isDown('KeyG')) p.pitch -= pitchSpeed * dt;
     p.pitch = clamp(p.pitch, -1.35, 1.35);
@@ -1235,6 +1261,16 @@ export class GameApp {
     this._spawnCorpseFromPlayer(victimId);
     // UI: skull pop for the killer.
     this._showKillPop(killerId);
+    // UI: global skull at bottom (always visible).
+    this._showGlobalKillPop();
+
+    // First kill callout (once per round).
+    if (!this._firstKillDone) {
+      this._firstKillDone = true;
+      const line = 'aaa bu ilk killin baya iyi görünüyor';
+      this._showToast(line);
+      this.audio.speak(line, { lang: 'tr-TR', rate: 1.02, pitch: 1.0, volume: 1.0 });
+    }
     this.scores[killerId] += 1;
     if (this.scores[killerId] >= WIN_KILLS) {
       this._enterWin(killerId);
