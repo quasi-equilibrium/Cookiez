@@ -147,6 +147,13 @@ body {
   font-size: 24px;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
 }
+.weather-pill[data-weather='hack']::after {
+  content: '1011';
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #37e6a1;
+  text-shadow: 0 0 18px rgba(55, 230, 161, 0.45);
+}
 
 .inv-bag {
   position: fixed;
@@ -321,6 +328,13 @@ body.menu-mode .inv-bag {
   content: '🌀';
   font-size: 34px;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
+}
+.wicon[data-weather='hack']::after {
+  content: '1011';
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #37e6a1;
+  text-shadow: 0 0 18px rgba(55, 230, 161, 0.55);
 }
 .inv-item.selected {
   outline: 2px solid rgba(55, 230, 161, 0.55);

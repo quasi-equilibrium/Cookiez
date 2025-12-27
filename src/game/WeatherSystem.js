@@ -8,16 +8,18 @@ export const WeatherType = Object.freeze({
   ALL_GOLD: 'all_gold',
   BOMBER: 'bomber',
   YILBASI: 'yilbasi',
-  TUHAFLIKLAR: 'tuhafliklar'
+  TUHAFLIKLAR: 'tuhafliklar',
+  HACK: 'hack'
 });
 
 export class WeatherSystem {
-  constructor({ ui, world, audio, onInventoryOpen, onInventoryClose }) {
+  constructor({ ui, world, audio, onInventoryOpen, onInventoryClose, onHackEnabled }) {
     this.ui = ui;
     this.world = world;
     this.audio = audio;
     this.onInventoryOpen = onInventoryOpen;
     this.onInventoryClose = onInventoryClose;
+    this.onHackEnabled = onHackEnabled;
 
     // In-memory only (refresh resets everything).
     this.inventoryItems = [];
@@ -28,7 +30,7 @@ export class WeatherSystem {
     this.packCredits = this._basePackCredits;
 
     // Codes: refresh resets these.
-    this._redeemed = new Set(); // 'cookiez' | 'vip' | 'all_vip'
+    this._redeemed = new Set(); // 'cookiez' | 'vip' | 'all_vip' | 'hack'
 
     // Lightning effect state.
     this._lightningT = 0;
@@ -50,6 +52,9 @@ export class WeatherSystem {
     this._yilbasiGiftDone = false;
     this._yilbasiGiftAt2 = 0;
     this._yilbasiGiftDone2 = false;
+
+    // Hack visuals.
+    this._hackBits = null; // {sprites:Array<THREE.Sprite>}
   }
 
   mount() {
@@ -191,12 +196,23 @@ export class WeatherSystem {
       this._yilbasiGiftDone = false;
       this._yilbasiGiftAt2 = this._yilbasiGiftAt + 20; // second gift 20s later
       this._yilbasiGiftDone2 = false;
+      this.world.setHackBitsVisible?.(false);
     } else {
       // SUN
       scene.background = new THREE.Color('#0b1530');
       scene.fog = null;
       this.world.setLighting({ ambient: 0.72, hemi: 0.75, key: 0.95, tint: 0xfff0b5 });
       this.world.setLavaVisible?.(false);
+      this.world.setHackBitsVisible?.(false);
+    }
+
+    if (type === WeatherType.HACK) {
+      scene.background = new THREE.Color('#001b0b');
+      scene.fog = new THREE.FogExp2(0x001b0b, 0.03);
+      this.world.setLighting({ ambient: 0.18, hemi: 0.2, key: 0.35, tint: 0x37e6a1 });
+      this.world.applyTheme?.('default');
+      this.world.setLavaVisible?.(false);
+      this.world.setHackBitsVisible?.(true);
     }
   }
 
@@ -505,6 +521,17 @@ export class WeatherSystem {
       return;
     }
 
+    if (raw === 'hack') {
+      if (this._redeemed.has('hack')) {
+        this.ui.codeMsg.textContent = 'hile zaten açık';
+        return;
+      }
+      this._redeemed.add('hack');
+      this.ui.codeMsg.textContent = 'hile açıldı';
+      this.onHackEnabled?.();
+      return;
+    }
+
     if (raw === 'reset') {
       this.inventoryItems = [];
       this.selected = null;
@@ -517,6 +544,12 @@ export class WeatherSystem {
     }
 
     this.ui.codeMsg.textContent = 'geçersiz kod';
+  }
+
+  grantHackWeather() {
+    if (!this.inventoryItems.includes(WeatherType.HACK)) this.inventoryItems.push(WeatherType.HACK);
+    this._syncUI();
+    this.openInventory();
   }
 
   openVipModal() {
