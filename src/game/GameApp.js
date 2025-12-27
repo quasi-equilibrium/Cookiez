@@ -177,6 +177,21 @@ export class GameApp {
       packClose: document.getElementById('pack-close'),
       packStatus: document.getElementById('pack-status'),
 
+      codeBtn: document.getElementById('code-btn'),
+      codeOverlay: document.getElementById('code-overlay'),
+      codeInput: document.getElementById('code-input'),
+      codeSubmit: document.getElementById('code-submit'),
+      codeClose: document.getElementById('code-close'),
+      codeMsg: document.getElementById('code-msg'),
+
+      vipBtn: document.getElementById('vip-btn'),
+      vipOverlay: document.getElementById('vip-overlay'),
+      vipInput: document.getElementById('vip-input'),
+      vipSubmit: document.getElementById('vip-submit'),
+      vipAll: document.getElementById('vip-all'),
+      vipClose: document.getElementById('vip-close'),
+      vipMsg: document.getElementById('vip-msg'),
+
       p1: {
         hud: document.getElementById('hud-p1'),
         hp: document.getElementById('p1-hp'),

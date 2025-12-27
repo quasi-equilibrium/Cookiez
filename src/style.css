@@ -124,6 +124,18 @@ body {
   background: linear-gradient(180deg, #ff8a5a, #ff3333);
   box-shadow: 0 0 18px rgba(255, 70, 70, 0.22);
 }
+.weather-pill[data-weather='all_gold']::after {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff5a6, #ffb13b);
+  box-shadow: 0 0 0 6px rgba(255, 210, 74, 0.18), 0 0 22px rgba(255, 210, 74, 0.28);
+}
+.weather-pill[data-weather='bomber']::after {
+  content: '💣';
+  font-size: 22px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
 
 .inv-bag {
   position: fixed;
@@ -276,6 +288,18 @@ body.menu-mode .inv-bag {
   background: linear-gradient(180deg, #ff8a5a, #ff3333);
   box-shadow: 0 0 20px rgba(255, 70, 70, 0.22);
 }
+.wicon[data-weather='all_gold']::after {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff5a6, #ffb13b);
+  box-shadow: 0 0 0 8px rgba(255, 210, 74, 0.14), 0 0 24px rgba(255, 210, 74, 0.28);
+}
+.wicon[data-weather='bomber']::after {
+  content: '💣';
+  font-size: 34px;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
+}
 .inv-item.selected {
   outline: 2px solid rgba(55, 230, 161, 0.55);
   box-shadow: 0 0 0 6px rgba(55, 230, 161, 0.08);
@@ -294,6 +318,13 @@ body.menu-mode .inv-bag {
   background: rgba(55, 230, 161, 0.1);
   color: #37e6a1;
   font-weight: 1000;
+}
+.inv-item.vip {
+  border-color: rgba(255, 210, 74, 0.35);
+  box-shadow: 0 0 0 6px rgba(255, 210, 74, 0.06);
+}
+.inv-item.vip.selected {
+  outline-color: rgba(255, 210, 74, 0.55);
 }
 .inv-empty {
   margin-top: 14px;
@@ -602,6 +633,78 @@ body.menu-mode .inv-bag {
 }
 .menu.in-game .menu-center {
   display: none;
+}
+
+.corner-btn {
+  position: absolute;
+  top: 14px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 1000;
+  font-size: 24px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 18px rgba(120, 200, 255, 0.12);
+}
+.corner-btn:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+.corner-left {
+  left: 14px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.corner-right {
+  right: 14px;
+  font-size: 30px;
+}
+
+.code-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+.code-modal {
+  width: min(520px, calc(100% - 48px));
+  background: rgba(5, 10, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 16px;
+  color: #eaf2ff;
+  display: grid;
+  gap: 12px;
+}
+.code-title {
+  font-weight: 1000;
+  letter-spacing: 1px;
+}
+.code-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.code-input {
+  flex: 1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-weight: 900;
+  font-size: 16px;
+}
+.code-msg {
+  min-height: 18px;
+  opacity: 0.92;
+  font-size: 13px;
 }
 
 .pack-btn {
