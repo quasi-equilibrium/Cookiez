@@ -359,51 +359,63 @@ export class AudioManager {
     }
 
     if (type === 'rain') {
-      // Soft rain hiss using a filtered square + random modulation (cheap).
-      const osc = this.ctx.createOscillator();
-      osc.type = 'square';
-      osc.frequency.value = 2400;
-      const bp = this.ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 1800;
-      bp.Q.value = 0.3;
+      // More realistic rain: looped noise through filters (cheap + smooth).
+      const sr = this.ctx.sampleRate;
+      const dur = 1.0;
+      const buf = this.ctx.createBuffer(1, Math.floor(sr * dur), sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
+
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 700;
+      hp.Q.value = 0.7;
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2600;
+      lp.Q.value = 0.4;
+
       const g = this.ctx.createGain();
       g.gain.value = 0;
-      osc.connect(bp);
-      bp.connect(g);
-      g.connect(this.master);
-      osc.start();
 
-      let alive = true;
-      const interval = setInterval(() => {
-        if (!this.ctx || !alive) return;
-        const t = this.ctx.currentTime;
-        // Small random flutter.
-        osc.frequency.setValueAtTime(1800 + Math.random() * 1600, t);
-        bp.frequency.setValueAtTime(1200 + Math.random() * 1300, t);
-        const target = volume * 0.06 + Math.random() * volume * 0.04;
-        g.gain.cancelScheduledValues(t);
-        g.gain.setValueAtTime(g.gain.value, t);
-        g.gain.linearRampToValueAtTime(target, t + 0.04);
-      }, 70);
+      // Gentle flutter for realism.
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.8;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = volume * 0.02;
+      lfo.connect(lfoGain);
+      lfoGain.connect(g.gain);
+
+      src.connect(hp);
+      hp.connect(lp);
+      lp.connect(g);
+      g.connect(this.master);
+
+      src.start();
+      lfo.start();
 
       this._loops.set(key, {
-        stop: (fadeMs = 180) => {
-          alive = false;
-          clearInterval(interval);
+        stop: (fadeMs = 220) => {
           try {
             const t = this.ctx?.currentTime ?? 0;
             g.gain.cancelScheduledValues(t);
             g.gain.setValueAtTime(g.gain.value, t);
             g.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
-            osc.stop(t + fadeMs / 1000 + 0.02);
+            src.stop(t + fadeMs / 1000 + 0.02);
+            lfo.stop(t + fadeMs / 1000 + 0.02);
           } catch {
             // ignore
           }
         }
       });
-      // Fade in.
-      g.gain.linearRampToValueAtTime(volume * 0.08, this.ctx.currentTime + 0.2);
+
+      g.gain.linearRampToValueAtTime(volume * 0.12, this.ctx.currentTime + 0.25);
       return;
     }
   }
