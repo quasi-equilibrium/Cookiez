@@ -17,15 +17,20 @@
         <div id="scoreboard" class="scoreboard hidden">P1: 0 | P2: 0</div>
         <div id="split-bar" class="split-bar hidden"></div>
         <div id="center-msg" class="center-msg hidden">FIGHT</div>
-        <div id="weather-pill" class="weather-pill hidden">WEATHER: SUN</div>
+        <div id="weather-pill" class="weather-pill hidden" data-weather="sun" aria-label="Seçili hava durumu"></div>
 
-        <!-- Global inventory (bottom-left) -->
-        <div id="inventory" class="inventory hidden">
-          <div class="bag" aria-hidden="true"></div>
-          <div class="inv-slot">
-            <button id="inv-item" class="inv-item" type="button" aria-label="Hava durumu eşyası" title="Hava durumu"></button>
-            <button id="inv-select" class="inv-select hidden" type="button">SEÇ</button>
-            <div id="inv-check" class="inv-check hidden" aria-hidden="true">✓</div>
+        <!-- Inventory: just a bag icon. Clicking opens full-screen inventory -->
+        <button id="inv-bag" class="inv-bag hidden" type="button" aria-label="Envanteri aç"></button>
+
+        <div id="inv-overlay" class="inv-overlay hidden" role="dialog" aria-label="Envanter">
+          <div class="inv-modal">
+            <div class="inv-header">
+              <div class="inv-title">ENVANTER</div>
+              <button id="inv-close" class="btn" type="button">Kapat</button>
+            </div>
+            <div class="inv-sub">Sadece packten çıkanlar görünür. Seçmek için üstüne tıkla.</div>
+            <div id="inv-grid" class="inv-grid"></div>
+            <div id="inv-empty" class="inv-empty hidden">Henüz bir şey çıkmadı.</div>
           </div>
         </div>
 
@@ -148,6 +153,7 @@
         <div id="pack-overlay" class="pack-overlay hidden">
           <div class="pack-modal">
             <div class="pack-title">Weather Pack</div>
+            <div id="pack-status" class="pack-status">2/2 PACK HAKKIN VAR</div>
             <div id="pack-big" class="pack-big">
               <div class="pack-art">
                 <div class="icon sun"></div>

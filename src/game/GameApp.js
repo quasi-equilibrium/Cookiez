@@ -93,7 +93,20 @@ export class GameApp {
     this._stepT = { p1: 0, p2: 0 };
 
     this._ui = this._bindUI();
-    this.weather = new WeatherSystem({ ui: this._ui, world: this.world, audio: this.audio });
+    this.weather = new WeatherSystem({
+      ui: this._ui,
+      world: this.world,
+      audio: this.audio,
+      onInventoryOpen: () => {
+        // Freeze both players while inventory is open (simple + safe).
+        this.players.p1.controlsLocked = true;
+        this.players.p2.controlsLocked = true;
+      },
+      onInventoryClose: () => {
+        this.players.p1.controlsLocked = false;
+        this.players.p2.controlsLocked = false;
+      }
+    });
     this.weather.mount();
 
     this.taskSystem = new TaskSystem({
@@ -150,10 +163,11 @@ export class GameApp {
       buildTag: document.getElementById('build-tag'),
       weatherPill: document.getElementById('weather-pill'),
 
-      inventory: document.getElementById('inventory'),
-      invItem: document.getElementById('inv-item'),
-      invSelect: document.getElementById('inv-select'),
-      invCheck: document.getElementById('inv-check'),
+      invBag: document.getElementById('inv-bag'),
+      invOverlay: document.getElementById('inv-overlay'),
+      invGrid: document.getElementById('inv-grid'),
+      invClose: document.getElementById('inv-close'),
+      invEmpty: document.getElementById('inv-empty'),
 
       packBtn: document.getElementById('pack-btn'),
       packOverlay: document.getElementById('pack-overlay'),
@@ -161,6 +175,7 @@ export class GameApp {
       packResult: document.getElementById('pack-result'),
       packResultItem: document.getElementById('pack-result-item'),
       packClose: document.getElementById('pack-close'),
+      packStatus: document.getElementById('pack-status'),
 
       p1: {
         hud: document.getElementById('hud-p1'),
