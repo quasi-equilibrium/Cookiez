@@ -818,9 +818,9 @@ export class GameApp {
     const ok = this.world.openGiftNear?.(p.pos);
     if (!ok) return;
 
-    // Random weapon: Laser is rare.
+    // Random weapon: Laser is normal chance now.
     const roll = Math.random();
-    const type = roll < 0.06 ? WeaponType.LASER : WeaponType.SHOTGUN;
+    const type = roll < 0.5 ? WeaponType.LASER : WeaponType.SHOTGUN;
     this._grantBonusWeapon(playerId, type);
   }
 
