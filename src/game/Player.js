@@ -127,22 +127,24 @@ export class Player {
 
     this.eyeL = new THREE.Mesh(eyeGeo, eyeWhiteMat);
     this.eyeL.name = `${id}-eyeL`;
-    // Push face forward so it's never "behind" the head.
-    this.eyeL.position.set(-0.06, 0.03, 0.185);
+    // Put the face on the FRONT of the head.
+    // (three.js "forward" is -Z, so +Z looked like it was on the back)
+    this.eyeL.position.set(-0.06, 0.03, -0.185);
     this.eyeR = new THREE.Mesh(eyeGeo, eyeWhiteMat);
     this.eyeR.name = `${id}-eyeR`;
-    this.eyeR.position.set(0.06, 0.03, 0.185);
+    this.eyeR.position.set(0.06, 0.03, -0.185);
 
     this.pupilL = new THREE.Mesh(pupilGeo, eyePupilMat);
     this.pupilL.name = `${id}-pupilL`;
-    this.pupilL.position.set(-0.06, 0.03, 0.215);
+    this.pupilL.position.set(-0.06, 0.03, -0.215);
     this.pupilR = new THREE.Mesh(pupilGeo, eyePupilMat);
     this.pupilR.name = `${id}-pupilR`;
-    this.pupilR.position.set(0.06, 0.03, 0.215);
+    this.pupilR.position.set(0.06, 0.03, -0.215);
 
     this.mouth = new THREE.Mesh(mouthGeo, mouthMat);
     this.mouth.name = `${id}-mouth`;
-    this.mouth.position.set(0, -0.07, 0.195);
+    this.mouth.position.set(0, -0.07, -0.195);
+    this.mouth.rotation.y = Math.PI; // face towards -Z
     this.mouth.rotation.z = Math.PI; // smile
     this.mouth.scale.set(1.0, 0.8, 1.0);
 
