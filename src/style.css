@@ -832,7 +832,7 @@ body.menu-mode .inv-bag {
   position: absolute;
   left: 0;
   right: 0;
-  top: -70vh; /* JS will animate translateY */
+  top: 0; /* JS animates translateY from negative to down */
   padding: 80px 24px 140px;
   display: grid;
   gap: 18px;

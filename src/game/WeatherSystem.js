@@ -575,8 +575,8 @@ export class WeatherSystem {
     if (!this.ui.vipMsg) return;
     const low = raw.toLowerCase();
 
-    // New VIP code request: "all of" gives 15 pack credits.
-    if (low === 'all of') {
+    // New VIP code request: "all_of" gives 15 pack credits.
+    if (low === 'all_of') {
       if (this._redeemed.has('all_of')) {
         this.ui.vipMsg.textContent = 'bunu zaten aldınız';
         return;
