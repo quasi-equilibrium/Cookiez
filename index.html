@@ -20,6 +20,10 @@
         <div id="weather-pill" class="weather-pill hidden" data-weather="sun" aria-label="Seçili hava durumu"></div>
         <div id="kill-pop-global" class="kill-pop-global" aria-hidden="true">☠</div>
         <div id="toast-msg" class="toast-msg" aria-live="polite"></div>
+        <div id="badge-toast" class="badge-toast" aria-live="polite" aria-atomic="true">
+          <div class="badge-toast-title" id="badge-toast-title">YUMURTA</div>
+          <div class="badge-toast-sub" id="badge-toast-sub">Badge kazanıldı</div>
+        </div>
 
         <!-- Inventory: just a bag icon. Clicking opens full-screen inventory -->
         <button id="inv-bag" class="inv-bag hidden" type="button" aria-label="Envanteri aç"></button>
@@ -130,6 +134,36 @@
         <!-- Corner buttons (menu only) -->
         <button id="vip-btn" class="corner-btn corner-left" type="button" title="VIP">WIP</button>
         <button id="code-btn" class="corner-btn corner-right" type="button" title="Kod">?</button>
+
+        <!-- Left menu buttons -->
+        <button id="intro-btn" class="menu-left-btn intro-btn" type="button" title="Intro">INTRO</button>
+        <button id="ach-btn" class="menu-left-btn ach-btn" type="button" title="Başarımlar" aria-label="Başarımlar"></button>
+
+        <!-- Intro overlay -->
+        <div id="intro-overlay" class="intro-overlay hidden" role="dialog" aria-label="Intro">
+          <div id="intro-sheet" class="intro-sheet">
+            <div class="intro-line intro-title">INTRO</div>
+            <div class="intro-line">Yapımcılar Cookiez</div>
+            <div class="intro-line">Egemen</div>
+            <div class="intro-line">hüseyin</div>
+            <div class="intro-line">yarıdımcı cursor</div>
+          </div>
+          <button id="intro-egg" class="intro-egg hidden" type="button" aria-label="Yumurta">
+            <span class="egg"></span>
+          </button>
+        </div>
+
+        <!-- Achievements overlay -->
+        <div id="ach-overlay" class="inv-overlay hidden" role="dialog" aria-label="Başarımlar">
+          <div class="inv-modal">
+            <div class="inv-header">
+              <div class="inv-title">BAŞARIMLAR</div>
+              <button id="ach-close" class="btn" type="button">Kapat</button>
+            </div>
+            <div class="inv-sub">Badge’ler: bulunca açılır.</div>
+            <div id="ach-grid" class="ach-grid"></div>
+          </div>
+        </div>
 
         <!-- Code overlay -->
         <div id="code-overlay" class="code-overlay hidden">

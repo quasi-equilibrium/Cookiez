@@ -99,6 +99,12 @@ export class GameApp {
     this._stepT = { p1: 0, p2: 0 };
 
     this._ui = this._bindUI();
+    // Menu-only systems (intro + achievements + idle easter egg).
+    this._menuIdleT = 0;
+    this._intro = { open: false, mode: 'credits', y: 0 };
+    this._badges = { egg: false, star: false, weather: false };
+    this._lastBadgeToastAt = 0;
+    this._installMenuIdleListeners();
     this.weather = new WeatherSystem({
       ui: this._ui,
       world: this.world,
@@ -115,6 +121,9 @@ export class GameApp {
       onHackEnabled: () => {
         this._cheatsEnabled = true;
         this._showToast('hile açıldı (fake)');
+      },
+      onInventoryChanged: () => {
+        this._maybeUnlockWeatherBadge();
       }
     });
     this.weather.mount();
@@ -176,12 +185,25 @@ export class GameApp {
       weatherPill: document.getElementById('weather-pill'),
       killPopGlobal: document.getElementById('kill-pop-global'),
       toastMsg: document.getElementById('toast-msg'),
+      badgeToast: document.getElementById('badge-toast'),
+      badgeToastTitle: document.getElementById('badge-toast-title'),
+      badgeToastSub: document.getElementById('badge-toast-sub'),
 
       invBag: document.getElementById('inv-bag'),
       invOverlay: document.getElementById('inv-overlay'),
       invGrid: document.getElementById('inv-grid'),
       invClose: document.getElementById('inv-close'),
       invEmpty: document.getElementById('inv-empty'),
+
+      introBtn: document.getElementById('intro-btn'),
+      introOverlay: document.getElementById('intro-overlay'),
+      introSheet: document.getElementById('intro-sheet'),
+      introEgg: document.getElementById('intro-egg'),
+
+      achBtn: document.getElementById('ach-btn'),
+      achOverlay: document.getElementById('ach-overlay'),
+      achGrid: document.getElementById('ach-grid'),
+      achClose: document.getElementById('ach-close'),
 
       packBtn: document.getElementById('pack-btn'),
       packOverlay: document.getElementById('pack-overlay'),
@@ -279,6 +301,36 @@ export class GameApp {
       ui._rating = v;
       const all = ui.stars.querySelectorAll('.star');
       all.forEach((s) => s.classList.toggle('filled', Number(s.dataset.star) <= ui._rating));
+      if (ui._rating === 5) this._unlockBadge('star');
+    });
+
+    // Intro (menu only).
+    ui.introBtn?.addEventListener('click', async () => {
+      await this.audio.unlock();
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      this._openIntro('credits');
+    });
+    ui.introOverlay?.addEventListener('click', (e) => {
+      // Clicking the egg should not close the overlay.
+      if (e.target === ui.introEgg || ui.introEgg?.contains(/** @type {Node} */ (e.target))) return;
+      this._closeIntro();
+    });
+    ui.introEgg?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._unlockBadge('egg');
+      this._showToast('Easter egg bulundu');
+      this._closeIntro();
+    });
+
+    // Achievements (menu only).
+    ui.achBtn?.addEventListener('click', async () => {
+      await this.audio.unlock();
+      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      this._openAchievements();
+    });
+    ui.achClose?.addEventListener('click', () => this._closeAchievements());
+    ui.achOverlay?.addEventListener('click', (e) => {
+      if (e.target === ui.achOverlay) this._closeAchievements();
     });
 
     // Help overlay (H).
@@ -298,6 +350,135 @@ export class GameApp {
     });
 
     return ui;
+  }
+
+  _installMenuIdleListeners() {
+    // Any user interaction resets the 2-minute idle timer (for easter egg).
+    const mark = () => {
+      this._menuIdleT = 0;
+    };
+    window.addEventListener('pointerdown', mark, { passive: true });
+    window.addEventListener('mousemove', mark, { passive: true });
+    window.addEventListener('keydown', mark, { passive: true });
+    window.addEventListener('wheel', mark, { passive: true });
+    window.addEventListener('touchstart', mark, { passive: true });
+  }
+
+  _openIntro(mode = 'credits') {
+    if (!this._ui?.introOverlay || !this._ui?.introSheet) return;
+    this._intro.open = true;
+    this._intro.mode = mode;
+    this._intro.y = 0;
+    this._ui.introOverlay.classList.remove('hidden');
+
+    if (mode === 'idle') {
+      // Blank slide + egg button.
+      this._ui.introSheet.innerHTML = '';
+      this._ui.introEgg?.classList.add('hidden');
+    } else {
+      // Restore credits (in case idle cleared it).
+      this._ui.introSheet.innerHTML = `
+        <div class="intro-line intro-title">INTRO</div>
+        <div class="intro-line">Yapımcılar Cookiez</div>
+        <div class="intro-line">Egemen</div>
+        <div class="intro-line">hüseyin</div>
+        <div class="intro-line">yarıdımcı cursor</div>
+      `;
+      this._ui.introEgg?.classList.add('hidden');
+    }
+    this._syncIntroTransform();
+  }
+
+  _closeIntro() {
+    this._intro.open = false;
+    this._ui?.introOverlay?.classList.add('hidden');
+    this._ui?.introEgg?.classList.add('hidden');
+  }
+
+  _syncIntroTransform() {
+    const sheet = this._ui?.introSheet;
+    if (!sheet) return;
+    sheet.style.transform = `translateY(${this._intro.y}px)`;
+  }
+
+  _openAchievements() {
+    this._ui?.achOverlay?.classList.remove('hidden');
+    this._syncAchievementsUI();
+  }
+
+  _closeAchievements() {
+    this._ui?.achOverlay?.classList.add('hidden');
+  }
+
+  _syncAchievementsUI() {
+    const grid = this._ui?.achGrid;
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const mk = (key, labelUnlocked, iconKind) => {
+      const unlocked = !!this._badges[key];
+      const el = document.createElement('div');
+      el.className = `badge-item${unlocked ? ' unlocked' : ''}`;
+
+      if (iconKind === 'weather') {
+        const icon = document.createElement('div');
+        icon.className = 'bicon weather-icons';
+        icon.innerHTML = `<span class="cloud"></span><span class="sun"></span><span class="volcano"></span>`;
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = unlocked ? labelUnlocked : '???';
+        el.appendChild(icon);
+        el.appendChild(label);
+        return el;
+      }
+
+      const icon = document.createElement('div');
+      icon.className = 'bicon';
+      icon.dataset.badge = iconKind;
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = unlocked ? labelUnlocked : '???';
+      el.appendChild(icon);
+      el.appendChild(label);
+      return el;
+    };
+
+    grid.appendChild(mk('egg', 'Yumurta', 'egg'));
+    grid.appendChild(mk('star', 'Yıldız', 'star'));
+    grid.appendChild(mk('weather', 'Hava Durumları', 'weather'));
+  }
+
+  _showBadgeToast(title) {
+    const el = this._ui?.badgeToast;
+    if (!el) return;
+    const now = performance.now();
+    if (now - this._lastBadgeToastAt < 350) return;
+    this._lastBadgeToastAt = now;
+
+    if (this._ui.badgeToastTitle) this._ui.badgeToastTitle.textContent = String(title).toUpperCase();
+    if (this._ui.badgeToastSub) this._ui.badgeToastSub.textContent = 'Badge kazanıldı';
+    el.classList.remove('show');
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3100);
+  }
+
+  _unlockBadge(kind) {
+    if (this._badges?.[kind]) return;
+    this._badges[kind] = true;
+    const title = kind === 'egg' ? 'Yumurta' : kind === 'star' ? 'Yıldız' : 'Hava Durumları';
+    this._showBadgeToast(title);
+    this._syncAchievementsUI();
+  }
+
+  _maybeUnlockWeatherBadge() {
+    if (this._badges.weather) return;
+    // Requirement: collect all weather types EXCEPT volcano.
+    const items = this.weather?.inventoryItems ?? [];
+    const required = ['sun', 'cloud', 'lightning', 'all_gold', 'bomber', 'yilbasi', 'tuhafliklar', 'hack'];
+    const ok = required.every((t) => items.includes(t));
+    if (ok) this._unlockBadge('weather');
   }
 
   _showGlobalKillPop() {
@@ -346,6 +527,9 @@ export class GameApp {
     this._ui.invBag?.classList.toggle('hidden', !isMenu);
     if (!isMenu) {
       this._ui.invOverlay?.classList.add('hidden');
+      this._ui.introOverlay?.classList.add('hidden');
+      this._ui.achOverlay?.classList.add('hidden');
+      this._intro.open = false;
     }
   }
 
@@ -371,6 +555,7 @@ export class GameApp {
     // If a real ambient audio buffer was playing, stop it too.
     this.audio.stopAmbient();
     this._resetRound();
+    this._maybeUnlockWeatherBadge();
   }
 
   _startTransitionToGame() {
@@ -486,8 +671,42 @@ export class GameApp {
     if (this.state === 'MENU') {
       this.demoBots.setEnabled(true);
       this.demoBots.update(dt);
+
+      // Idle easter egg: after 2 minutes idle in menu, show blank intro + egg.
+      const anyOverlayOpen =
+        !this._ui.packOverlay?.classList.contains('hidden') ||
+        !this._ui.codeOverlay?.classList.contains('hidden') ||
+        !this._ui.vipOverlay?.classList.contains('hidden') ||
+        !this._ui.invOverlay?.classList.contains('hidden') ||
+        !this._ui.achOverlay?.classList.contains('hidden') ||
+        !this._ui.introOverlay?.classList.contains('hidden');
+      if (!anyOverlayOpen) {
+        this._menuIdleT += dt;
+        if (this._menuIdleT >= 120 && !this._intro.open) {
+          this._openIntro('idle');
+        }
+      }
     } else {
       this.demoBots.setEnabled(false);
+    }
+
+    // Intro scroll animation (very slow, downwards).
+    if (this._intro.open && this._ui.introSheet) {
+      if (this._intro.mode === 'idle') {
+        // Slide down a bit, then stop and reveal the egg.
+        const stopAt = 260;
+        if (this._intro.y < stopAt) {
+          this._intro.y = Math.min(stopAt, this._intro.y + 18 * dt);
+          if (this._intro.y >= stopAt - 0.01) this._ui.introEgg?.classList.remove('hidden');
+        } else {
+          this._ui.introEgg?.classList.remove('hidden');
+        }
+        this._syncIntroTransform();
+      } else {
+        const maxY = 1600;
+        this._intro.y = Math.min(maxY, this._intro.y + 22 * dt);
+        this._syncIntroTransform();
+      }
     }
 
     // Weather animation (lightning flashes) during gameplay only.
@@ -540,10 +759,9 @@ export class GameApp {
         }
         this.world.setElevatorDoorOpen('p1', this.elevator.doorOpen01);
         this.world.setElevatorDoorOpen('p2', this.elevator.doorOpen01);
-        // Fade away the white cabin as doors open so the arena becomes visible.
-        const alpha = clamp(1 - this.elevator.doorOpen01 * 1.15, 0, 1);
-        this.world.setElevatorCabinAlpha('p1', alpha);
-        this.world.setElevatorCabinAlpha('p2', alpha);
+        // Keep elevator cabin always visible (user request: "her yeri beyaz olsun").
+        this.world.setElevatorCabinAlpha('p1', 1);
+        this.world.setElevatorCabinAlpha('p2', 1);
 
         if (this.elevator.fightMsgTimer <= 0) {
           this._ui.centerMsg.textContent = 'FIGHT';
@@ -1595,6 +1813,7 @@ export class GameApp {
     const line = 'ohaaa kazanmışsın inanılmazzzz altaki yıldızdan bizi deyerlendirin lütfen oynadığınız için teşekkürler.';
     this._ui.winSub.textContent = line;
     this.audio.speak(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
+    if (this._ui._rating === 5) this._unlockBadge('star');
   }
 
   _applySniperZoom(playerId) {

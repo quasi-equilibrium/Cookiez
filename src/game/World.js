@@ -939,33 +939,80 @@ export class World {
 
   _addElevators() {
     const mkElevator = (anchor, key) => {
-      // White cabin that hides the map completely during the countdown.
-      // We render its faces from the inside (BackSide) so the player camera sees "only white".
-      const cabinMat = new THREE.MeshBasicMaterial({
+      // Elevator cabin: white walls with a REAL doorway opening.
+      // This fixes the "door opens but still looks blocked" bug from a solid cube.
+      const cabinGroup = new THREE.Group();
+      cabinGroup.position.set(anchor.x, 0, anchor.z);
+      this.scene.add(cabinGroup);
+      this.elevators[key].cabin = cabinGroup;
+
+      const cabinMats = [];
+      const whiteMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
-        side: THREE.BackSide,
+        side: THREE.DoubleSide,
         transparent: true,
         opacity: 1.0
       });
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(5.0, 4.6, 5.0), cabinMat);
-      cabin.position.set(anchor.x, 2.3, anchor.z);
-      this.scene.add(cabin);
-      this.elevators[key].cabin = cabin;
+      const mkPanel = (geo, x, y, z, ry = 0) => {
+        const m = new THREE.Mesh(geo, whiteMat.clone());
+        m.position.set(x, y, z);
+        m.rotation.y = ry;
+        cabinGroup.add(m);
+        cabinMats.push(m.material);
+        return m;
+      };
 
-      // User request: elevator is white everywhere, door is grey.
-      const frameMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.65,
-        metalness: 0.0,
-        emissive: 0xffffff,
-        emissiveIntensity: 0.08
-      });
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 5.0, 5.4), frameMat);
-      frame.position.set(anchor.x, 2.5, anchor.z);
-      this.scene.add(frame);
+      const w = 5.0;
+      const h = 4.6;
+      const d = 5.0;
+      const doorH = 4.2;
+      const doorW = 3.6; // opening width in Z
+      const doorDir = key === 'p1' ? 1 : -1; // doorway faces center
+
+      // Floor + ceiling
+      const floor = new THREE.PlaneGeometry(w, d);
+      floor.rotateX(-Math.PI / 2);
+      mkPanel(floor, 0, 0.002, 0);
+      const ceil = new THREE.PlaneGeometry(w, d);
+      ceil.rotateX(Math.PI / 2);
+      mkPanel(ceil, 0, h, 0);
+
+      // Side walls (Z+ / Z-)
+      const wallSide = new THREE.PlaneGeometry(w, h);
+      mkPanel(wallSide, 0, h / 2, d / 2, 0);
+      mkPanel(wallSide, 0, h / 2, -d / 2, Math.PI);
+
+      // Back wall (opposite door)
+      const backWall = new THREE.PlaneGeometry(d, h);
+      mkPanel(backWall, -doorDir * (w / 2), h / 2, 0, doorDir === 1 ? -Math.PI / 2 : Math.PI / 2);
+
+      // Front wall pieces around the doorway (leave gap for the door).
+      const sidePieceW = (d - doorW) / 2; // along Z
+      const sidePiece = new THREE.PlaneGeometry(sidePieceW, h);
+      // Left piece
+      mkPanel(
+        sidePiece,
+        doorDir * (w / 2),
+        h / 2,
+        -(doorW / 2 + sidePieceW / 2),
+        doorDir === 1 ? Math.PI / 2 : -Math.PI / 2
+      );
+      // Right piece
+      mkPanel(
+        sidePiece,
+        doorDir * (w / 2),
+        h / 2,
+        doorW / 2 + sidePieceW / 2,
+        doorDir === 1 ? Math.PI / 2 : -Math.PI / 2
+      );
+      // Top piece above doorway
+      const topH = h - doorH;
+      const topPiece = new THREE.PlaneGeometry(doorW, topH);
+      mkPanel(topPiece, doorDir * (w / 2), doorH + topH / 2, 0, doorDir === 1 ? Math.PI / 2 : -Math.PI / 2);
+
+      cabinGroup.userData._mats = cabinMats;
 
       // Door at the side facing the center (towards +X for P1 elevator, towards -X for P2).
-      const doorDir = key === 'p1' ? 1 : -1;
       const door = new THREE.Mesh(
         new THREE.BoxGeometry(0.25, 4.2, 3.6),
         new THREE.MeshStandardMaterial({
@@ -974,7 +1021,9 @@ export class World {
           metalness: 0.1
         })
       );
-      door.position.set(anchor.x + doorDir * 2.55, 2.1, anchor.z);
+      // Keep door aligned with the doorway plane and slide along Z in setElevatorDoorOpen().
+      door.userData.doorDir = doorDir;
+      door.position.set(anchor.x + doorDir * (w / 2 + 0.125), 2.1, anchor.z);
       this.scene.add(door);
 
       this._addColliderFromMesh(door, 'elevatorDoor');
@@ -1028,11 +1077,9 @@ export class World {
     const c = this.elevators[key].cabin;
     if (!c) return;
     c.visible = alpha > 0.01;
-    c.material.opacity = alpha;
-
-    // If the cabin is visible, hide the 3D display so the player sees "only white".
-    const disp = this.elevators[key].display?.plane;
-    if (disp) disp.visible = alpha <= 0.01;
+    // Cabin is a Group; fade all its materials (keep display visible).
+    const mats = c.userData?._mats ?? [];
+    for (const m of mats) m.opacity = alpha;
   }
 
   setElevatorDisplay(key, text) {
@@ -1061,7 +1108,8 @@ export class World {
     // So we slide along Z with opposite directions per elevator.
     const zDir = e.doorMesh.userData.slideZDir ?? (key === 'p1' ? 1 : -1);
     // Keep door in doorway plane (X fixed) and slide along Z to open.
-    e.doorMesh.position.x = e.anchor.x + (key === 'p1' ? 1 : -1) * 2.55;
+    const doorDir = e.doorMesh.userData.doorDir ?? (key === 'p1' ? 1 : -1);
+    e.doorMesh.position.x = e.anchor.x + doorDir * (2.5 + 0.125);
     e.doorMesh.position.z = e.anchor.z + zDir * (open01 * 2.2);
     // Disable collider when mostly open.
     if (e.doorCollider) {
