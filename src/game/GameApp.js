@@ -27,7 +27,8 @@ export class GameApp {
       antialias: true,
       powerPreference: 'high-performance'
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Performance: cap pixel ratio a bit lower for stability.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setScissorTest(true);
 
     this.input = new Input({ canvas: this.canvas });
@@ -166,7 +167,9 @@ export class GameApp {
       centerMsg: document.getElementById('center-msg'),
       win: document.getElementById('win-screen'),
       winTitle: document.getElementById('win-title'),
-      restartBtn: document.getElementById('restart-btn'),
+      winSub: document.getElementById('win-sub'),
+      stars: document.getElementById('stars'),
+      saveBtn: document.getElementById('save-btn'),
 
       controlsHelp: document.getElementById('controls-help'),
       buildTag: document.getElementById('build-tag'),
@@ -260,10 +263,22 @@ export class GameApp {
       ui.mouseFire.value = ui.mouseFireLive.value;
     });
 
-    ui.restartBtn.addEventListener('click', async () => {
+    ui.saveBtn.addEventListener('click', async () => {
       await this.audio.unlock();
       await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      // Back to menu without wiping inventory/codes (they live in WeatherSystem memory).
       this._toMenu();
+    });
+
+    // Star rating.
+    ui._rating = 0;
+    ui.stars?.addEventListener('click', (e) => {
+      const btn = /** @type {HTMLElement} */ (e.target);
+      const v = Number(btn?.dataset?.star ?? 0);
+      if (!v) return;
+      ui._rating = v;
+      const all = ui.stars.querySelectorAll('.star');
+      all.forEach((s) => s.classList.toggle('filled', Number(s.dataset.star) <= ui._rating));
     });
 
     // Help overlay (H).
@@ -1066,8 +1081,8 @@ export class GameApp {
     const pitchSpeed = 1.8;
     // Align with mouse look (P2): yaw decreases when turning right.
     if (this.input.isDown('KeyQ')) p.yaw += yawSpeed * dt; // left
+    if (this.input.isDown('KeyF')) p.yaw += yawSpeed * dt; // left (user request)
     if (this.input.isDown('KeyH')) p.yaw -= yawSpeed * dt * 1.45; // right (strong)
-    if (this.input.isDown('KeyF')) p.yaw -= yawSpeed * dt; // right (alt)
     if (this.input.isDown('KeyT')) p.pitch += pitchSpeed * dt;
     if (this.input.isDown('KeyG')) p.pitch -= pitchSpeed * dt;
     p.pitch = clamp(p.pitch, -1.35, 1.35);
@@ -1575,6 +1590,11 @@ export class GameApp {
     this.taskSystem.close('p2');
     this.players.p1.controlsLocked = false;
     this.players.p2.controlsLocked = false;
+
+    // Talk + ask for rating.
+    const line = 'ohaaa kazanmışsın inanılmazzzz altaki yıldızdan bizi deyerlendirin lütfen oynadığınız için teşekkürler.';
+    this._ui.winSub.textContent = line;
+    this.audio.speak(line, { lang: 'tr-TR', rate: 1.0, pitch: 1.0, volume: 1.0 });
   }
 
   _applySniperZoom(playerId) {
