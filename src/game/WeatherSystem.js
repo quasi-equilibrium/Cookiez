@@ -573,6 +573,20 @@ export class WeatherSystem {
   _submitVip() {
     const raw = (this.ui.vipInput?.value ?? '').trim();
     if (!this.ui.vipMsg) return;
+    const low = raw.toLowerCase();
+
+    // New VIP code request: "all of" gives 15 pack credits.
+    if (low === 'all of') {
+      if (this._redeemed.has('all_of')) {
+        this.ui.vipMsg.textContent = 'bunu zaten aldınız';
+        return;
+      }
+      this._redeemed.add('all_of');
+      this.packCredits += 15;
+      this.ui.vipMsg.textContent = '15 pack hakkı kazandın';
+      this._syncUI();
+      return;
+    }
 
     if (raw === '797500') {
       this._redeemed.add('vip');

@@ -306,8 +306,12 @@ export class GameApp {
 
     // Intro (menu only).
     ui.introBtn?.addEventListener('click', async () => {
-      await this.audio.unlock();
-      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      try {
+        await this.audio.unlock();
+        await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      } catch {
+        // Audio can be blocked by browser; intro should still open.
+      }
       this._openIntro('credits');
     });
     ui.introOverlay?.addEventListener('click', (e) => {
@@ -324,8 +328,12 @@ export class GameApp {
 
     // Achievements (menu only).
     ui.achBtn?.addEventListener('click', async () => {
-      await this.audio.unlock();
-      await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      try {
+        await this.audio.unlock();
+        await this.audio.playOneShot(assetUrl('assets/audio/sfx/ui_click.ogg'), { volume: 0.7, fallback: 'taskComplete' });
+      } catch {
+        // ignore
+      }
       this._openAchievements();
     });
     ui.achClose?.addEventListener('click', () => this._closeAchievements());
@@ -759,9 +767,10 @@ export class GameApp {
         }
         this.world.setElevatorDoorOpen('p1', this.elevator.doorOpen01);
         this.world.setElevatorDoorOpen('p2', this.elevator.doorOpen01);
-        // Keep elevator cabin always visible (user request: "her yeri beyaz olsun").
-        this.world.setElevatorCabinAlpha('p1', 1);
-        this.world.setElevatorCabinAlpha('p2', 1);
+        // Fade away the white cabin as doors open so the arena becomes visible.
+        const alpha = clamp(1 - this.elevator.doorOpen01 * 1.15, 0, 1);
+        this.world.setElevatorCabinAlpha('p1', alpha);
+        this.world.setElevatorCabinAlpha('p2', alpha);
 
         if (this.elevator.fightMsgTimer <= 0) {
           this._ui.centerMsg.textContent = 'FIGHT';

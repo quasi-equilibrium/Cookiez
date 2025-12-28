@@ -1080,6 +1080,10 @@ export class World {
     // Cabin is a Group; fade all its materials (keep display visible).
     const mats = c.userData?._mats ?? [];
     for (const m of mats) m.opacity = alpha;
+
+    // If the cabin is visible, hide the 3D display so the player sees "only white".
+    const disp = this.elevators[key].display?.plane;
+    if (disp) disp.visible = alpha <= 0.01;
   }
 
   setElevatorDisplay(key, text) {
