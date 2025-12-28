@@ -318,11 +318,8 @@ export class World {
       g.position.set(pos.x, 0, pos.z);
       g.rotation.y = randRange(-Math.PI, Math.PI);
       this.scene.add(g);
-      // small glow light (cheap)
-      const light = new THREE.PointLight(0xffd24a, 0.8, 5.5, 2.0);
-      light.position.set(pos.x, 1.0, pos.z);
-      this.scene.add(light);
-      g.userData.light = light;
+      // No per-bottle point light (performance). Emissive is enough.
+      g.userData.light = null;
       this.bottles.push({ id, mesh: g, position: new THREE.Vector3(pos.x, 0, pos.z), picked: false });
     };
 
@@ -587,11 +584,12 @@ export class World {
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(1.2, 2.2, 1.1),
         new THREE.MeshStandardMaterial({
-          color: 0x1a2a44,
-          roughness: 0.6,
-          metalness: 0.2,
-          emissive: taskIndex != null ? 0x2bffb9 : 0x000000,
-          emissiveIntensity: taskIndex != null ? 0.9 : 0
+          // More realistic: grey metal with warm yellow glow (no green).
+          color: 0x232a33,
+          roughness: 0.55,
+          metalness: 0.35,
+          emissive: 0xffd24a,
+          emissiveIntensity: taskIndex != null ? 0.35 : 0.08
         })
       );
       body.position.set(x, 1.1, z);
@@ -603,8 +601,8 @@ export class World {
         new THREE.PlaneGeometry(0.8, 0.6),
         new THREE.MeshStandardMaterial({
           color: 0x0a0f16,
-          emissive: taskIndex != null ? 0x7aa6ff : 0x3b6a9f,
-          emissiveIntensity: taskIndex != null ? 1.8 : 0.6
+          emissive: taskIndex != null ? 0xffd24a : 0x8b93a2,
+          emissiveIntensity: taskIndex != null ? 1.35 : 0.25
         })
       );
       screen.position.set(x, 1.5, z + 0.56);
@@ -954,10 +952,13 @@ export class World {
       this.scene.add(cabin);
       this.elevators[key].cabin = cabin;
 
+      // User request: elevator is white everywhere, door is grey.
       const frameMat = new THREE.MeshStandardMaterial({
-        color: 0x1a2334,
-        roughness: 0.55,
-        metalness: 0.25
+        color: 0xffffff,
+        roughness: 0.65,
+        metalness: 0.0,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.08
       });
       const frame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 5.0, 5.4), frameMat);
       frame.position.set(anchor.x, 2.5, anchor.z);
@@ -968,9 +969,9 @@ export class World {
       const door = new THREE.Mesh(
         new THREE.BoxGeometry(0.25, 4.2, 3.6),
         new THREE.MeshStandardMaterial({
-          color: 0x2c394f,
-          roughness: 0.45,
-          metalness: 0.35
+          color: 0x8b93a2,
+          roughness: 0.55,
+          metalness: 0.1
         })
       );
       door.position.set(anchor.x + doorDir * 2.55, 2.1, anchor.z);

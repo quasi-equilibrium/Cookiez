@@ -49,16 +49,19 @@ export class Player {
       emissive: 0x000000,
       emissiveIntensity: 0.0
     });
+    // Legs: tinted (not plain dark).
+    const legColor = new THREE.Color(color).multiplyScalar(0.55).lerp(new THREE.Color(0x1a1f2a), 0.25);
     const darkMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1f2a,
+      color: legColor,
       roughness: 0.9,
       metalness: 0.05,
       emissive: 0x000000,
       emissiveIntensity: 0.0
     });
-    // Arms: color-tinted (user request: "kolunu da renkli boya").
+    // Arms: slightly brighter tint for contrast.
+    const armColor = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.12);
     const armMat = new THREE.MeshStandardMaterial({
-      color,
+      color: armColor,
       roughness: 0.55,
       metalness: 0.12,
       emissive: 0x000000,
@@ -124,21 +127,22 @@ export class Player {
 
     this.eyeL = new THREE.Mesh(eyeGeo, eyeWhiteMat);
     this.eyeL.name = `${id}-eyeL`;
-    this.eyeL.position.set(-0.06, 0.03, 0.155);
+    // Push face forward so it's never "behind" the head.
+    this.eyeL.position.set(-0.06, 0.03, 0.185);
     this.eyeR = new THREE.Mesh(eyeGeo, eyeWhiteMat);
     this.eyeR.name = `${id}-eyeR`;
-    this.eyeR.position.set(0.06, 0.03, 0.155);
+    this.eyeR.position.set(0.06, 0.03, 0.185);
 
     this.pupilL = new THREE.Mesh(pupilGeo, eyePupilMat);
     this.pupilL.name = `${id}-pupilL`;
-    this.pupilL.position.set(-0.06, 0.03, 0.192);
+    this.pupilL.position.set(-0.06, 0.03, 0.215);
     this.pupilR = new THREE.Mesh(pupilGeo, eyePupilMat);
     this.pupilR.name = `${id}-pupilR`;
-    this.pupilR.position.set(0.06, 0.03, 0.192);
+    this.pupilR.position.set(0.06, 0.03, 0.215);
 
     this.mouth = new THREE.Mesh(mouthGeo, mouthMat);
     this.mouth.name = `${id}-mouth`;
-    this.mouth.position.set(0, -0.07, 0.165);
+    this.mouth.position.set(0, -0.07, 0.195);
     this.mouth.rotation.z = Math.PI; // smile
     this.mouth.scale.set(1.0, 0.8, 1.0);
 
