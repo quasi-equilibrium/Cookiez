@@ -13,13 +13,14 @@ export const WeatherType = Object.freeze({
 });
 
 export class WeatherSystem {
-  constructor({ ui, world, audio, onInventoryOpen, onInventoryClose, onHackEnabled }) {
+  constructor({ ui, world, audio, onInventoryOpen, onInventoryClose, onHackEnabled, onInventoryChanged }) {
     this.ui = ui;
     this.world = world;
     this.audio = audio;
     this.onInventoryOpen = onInventoryOpen;
     this.onInventoryClose = onInventoryClose;
     this.onHackEnabled = onHackEnabled;
+    this.onInventoryChanged = onInventoryChanged;
 
     // In-memory only (refresh resets everything).
     this.inventoryItems = [];
@@ -127,6 +128,7 @@ export class WeatherSystem {
     // Standard pack: only 4 base weathers.
     const got = this._randomWeatherStandard();
     this.inventoryItems.push(got);
+    this.onInventoryChanged?.(this.inventoryItems.slice());
 
     setTimeout(() => {
       if (this.ui.packResultItem) this.ui.packResultItem.textContent = got.toUpperCase();
@@ -540,6 +542,7 @@ export class WeatherSystem {
       this.applyToWorld();
       this.ui.codeMsg.textContent = 'envanter sıfırlandı';
       this._syncUI();
+      this.onInventoryChanged?.(this.inventoryItems.slice());
       return;
     }
 
@@ -550,6 +553,7 @@ export class WeatherSystem {
     if (!this.inventoryItems.includes(WeatherType.HACK)) this.inventoryItems.push(WeatherType.HACK);
     this._syncUI();
     this.openInventory();
+    this.onInventoryChanged?.(this.inventoryItems.slice());
   }
 
   openVipModal() {
@@ -610,6 +614,7 @@ export class WeatherSystem {
     this._syncUI();
     // Make it obvious: open inventory immediately so user sees items.
     this.openInventory();
+    this.onInventoryChanged?.(this.inventoryItems.slice());
   }
 }
 
