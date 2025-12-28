@@ -1014,7 +1014,8 @@ export class World {
 
       // Door at the side facing the center (towards +X for P1 elevator, towards -X for P2).
       const door = new THREE.Mesh(
-        new THREE.BoxGeometry(0.25, 4.2, 3.6),
+        // Slightly larger than the opening to avoid tiny "leaks".
+        new THREE.BoxGeometry(0.35, 4.3, 3.9),
         new THREE.MeshStandardMaterial({
           color: 0x8b93a2,
           roughness: 0.55,
@@ -1023,7 +1024,7 @@ export class World {
       );
       // Keep door aligned with the doorway plane and slide along Z in setElevatorDoorOpen().
       door.userData.doorDir = doorDir;
-      door.position.set(anchor.x + doorDir * (w / 2 + 0.125), 2.1, anchor.z);
+      door.position.set(anchor.x + doorDir * (w / 2 + 0.175), 2.1, anchor.z);
       this.scene.add(door);
 
       this._addColliderFromMesh(door, 'elevatorDoor');
@@ -1113,8 +1114,8 @@ export class World {
     const zDir = e.doorMesh.userData.slideZDir ?? (key === 'p1' ? 1 : -1);
     // Keep door in doorway plane (X fixed) and slide along Z to open.
     const doorDir = e.doorMesh.userData.doorDir ?? (key === 'p1' ? 1 : -1);
-    e.doorMesh.position.x = e.anchor.x + doorDir * (2.5 + 0.125);
-    e.doorMesh.position.z = e.anchor.z + zDir * (open01 * 2.2);
+    e.doorMesh.position.x = e.anchor.x + doorDir * (2.5 + 0.175);
+    e.doorMesh.position.z = e.anchor.z + zDir * (open01 * 2.4);
     // Disable collider when mostly open.
     if (e.doorCollider) {
       // Update collider to match animated door.

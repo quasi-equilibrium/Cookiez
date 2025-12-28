@@ -151,6 +151,13 @@ export class Player {
     // Put the face on the head so head pitch also moves the face.
     this.head.add(this.eyeL, this.eyeR, this.pupilL, this.pupilR, this.mouth);
 
+    // Rendering layers:
+    // - Everything is on layer 0.
+    // - Each player's face is on its own layer so the owner camera can ignore it
+    //   (prevents "eyes covering the whole screen" in first-person).
+    const faceLayer = id === 'p1' ? 1 : 2;
+    for (const o of [this.eyeL, this.eyeR, this.pupilL, this.pupilR, this.mouth]) o.layers.set(faceLayer);
+
     this.model.add(this.torso, this.head, this.legL, this.legR, this.armL, this.armR);
 
     this.hitbox = new THREE.Mesh(

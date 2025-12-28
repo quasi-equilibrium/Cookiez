@@ -50,6 +50,18 @@ export class GameApp {
     this.world.scene.add(this.players.p1.camera);
     this.world.scene.add(this.players.p2.camera);
 
+    // Camera layers:
+    // - Layer 0: world + all players base meshes
+    // - Layer 1: P1 face
+    // - Layer 2: P2 face
+    // Each camera renders the OTHER player's face layer only.
+    this.players.p1.camera.layers.enable(0);
+    this.players.p1.camera.layers.enable(2);
+    this.players.p1.camera.layers.disable(1);
+    this.players.p2.camera.layers.enable(0);
+    this.players.p2.camera.layers.enable(1);
+    this.players.p2.camera.layers.disable(2);
+
     this.weapons = {
       p1: new WeaponState(),
       p2: new WeaponState()
@@ -376,7 +388,8 @@ export class GameApp {
     if (!this._ui?.introOverlay || !this._ui?.introSheet) return;
     this._intro.open = true;
     this._intro.mode = mode;
-    this._intro.y = 0;
+    // Start above the screen, then slowly drop down.
+    this._intro.y = mode === 'idle' ? -260 : -520;
     this._ui.introOverlay.classList.remove('hidden');
 
     if (mode === 'idle') {
@@ -698,21 +711,22 @@ export class GameApp {
       this.demoBots.setEnabled(false);
     }
 
-    // Intro scroll animation (very slow, downwards).
+    // Intro drop animation (very slow, downwards).
     if (this._intro.open && this._ui.introSheet) {
       if (this._intro.mode === 'idle') {
         // Slide down a bit, then stop and reveal the egg.
-        const stopAt = 260;
+        const stopAt = 180;
         if (this._intro.y < stopAt) {
-          this._intro.y = Math.min(stopAt, this._intro.y + 18 * dt);
+          this._intro.y = Math.min(stopAt, this._intro.y + 30 * dt);
           if (this._intro.y >= stopAt - 0.01) this._ui.introEgg?.classList.remove('hidden');
         } else {
           this._ui.introEgg?.classList.remove('hidden');
         }
         this._syncIntroTransform();
       } else {
-        const maxY = 1600;
-        this._intro.y = Math.min(maxY, this._intro.y + 22 * dt);
+        // Credits drop into place, then stop (so it's readable).
+        const stopAt = 120;
+        if (this._intro.y < stopAt) this._intro.y = Math.min(stopAt, this._intro.y + 34 * dt);
         this._syncIntroTransform();
       }
     }
