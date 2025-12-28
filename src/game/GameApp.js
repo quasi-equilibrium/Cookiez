@@ -724,9 +724,10 @@ export class GameApp {
         }
         this._syncIntroTransform();
       } else {
-        // Credits drop into place, then stop (so it's readable).
-        const stopAt = 120;
-        if (this._intro.y < stopAt) this._intro.y = Math.min(stopAt, this._intro.y + 34 * dt);
+        // Credits should keep scrolling down very slowly (user request).
+        const maxY = 1800;
+        this._intro.y += 18 * dt;
+        if (this._intro.y >= maxY) this._intro.y = -520; // loop
         this._syncIntroTransform();
       }
     }
