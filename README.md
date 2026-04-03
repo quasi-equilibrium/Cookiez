@@ -9,7 +9,9 @@ npm install
 npm run dev:all
 ```
 
-Tarayıcı: `http://localhost:5173/` (Vite, `/lobby-ws` isteğini `8765` portuna yönlendirir)
+Tarayıcı: `http://localhost:5173/` (Vite, `/lobby-ws` isteğini `8765` portuna yönlendirir). Sayfada **Oyun adresi** satırında paylaşılacak tam URL de gösterilir; yayına aldığında orası canlı linkin olur.
+
+İlk açılışta **Mobil** veya **PC** seçilir; düzen buna göre ayarlanır (tercih tarayıcıda saklanır). **Cihazı değiştir** ile tekrar seçebilirsin.
 
 Sadece sunucu: `npm run lobby-server`
 

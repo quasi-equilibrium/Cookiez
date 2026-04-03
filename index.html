@@ -11,9 +11,28 @@
       <header class="lobby-header">
         <h1>Resim oyunu — Lobi</h1>
         <p class="lobby-sub">2–6 kişi. Sunucuyu çalıştırmayı unutma: <code>npm run lobby-server</code></p>
+        <p class="site-url-line">
+          Oyun adresi: <span id="site-url" class="site-url"></span>
+        </p>
+        <button id="btn-change-device" class="link-btn hidden" type="button">Cihazı değiştir</button>
       </header>
 
-      <section id="screen-connect" class="lobby-card">
+      <section id="screen-device" class="lobby-card">
+        <h2 class="device-title">Nereden oynuyorsun?</h2>
+        <p class="hint device-hint">Arayüz buna göre ayarlanır.</p>
+        <div class="device-pick">
+          <button id="btn-device-mobile" class="btn device-choice" type="button">
+            <span class="device-label">Mobil</span>
+            <span class="device-desc">Telefon / tablet</span>
+          </button>
+          <button id="btn-device-desktop" class="btn device-choice" type="button">
+            <span class="device-label">PC</span>
+            <span class="device-desc">Bilgisayar</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="screen-connect" class="lobby-card hidden">
         <p class="status" id="connect-status">Sunucuya bağlanılıyor…</p>
       </section>
 

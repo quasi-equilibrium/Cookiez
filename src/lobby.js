@@ -1,6 +1,7 @@
 const JOIN_NOT_FOUND = 'Böyle bir kod yok :(';
 const JOIN_FULL = 'Oda dolu (en fazla 6 kişi).';
 const JOIN_FORMAT = 'Kod 6 karakter olmalı.';
+const DEVICE_STORAGE_KEY = 'lobby-device-mode';
 
 function wsUrl() {
   const env = import.meta.env.VITE_LOBBY_WS_URL;
@@ -11,6 +12,13 @@ function wsUrl() {
 }
 
 const el = (id) => document.getElementById(id);
+
+const lobbyRoot = el('lobby-root');
+const screenDevice = el('screen-device');
+const siteUrlEl = el('site-url');
+const btnChangeDevice = el('btn-change-device');
+const btnDeviceMobile = el('btn-device-mobile');
+const btnDeviceDesktop = el('btn-device-desktop');
 
 const screenConnect = el('screen-connect');
 const screenHome = el('screen-home');
@@ -39,12 +47,54 @@ const finalRoster = el('final-roster');
 let ws = null;
 let myPlayerId = null;
 let lastState = null;
+/** Son oyun ekranı (cihaz seçiminden sonra dönülecek) */
+let flowScreen = 'connect';
+
+function readSavedDevice() {
+  try {
+    const v = localStorage.getItem(DEVICE_STORAGE_KEY);
+    if (v === 'mobile' || v === 'desktop') return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function saveDeviceMode(mode) {
+  try {
+    localStorage.setItem(DEVICE_STORAGE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyDeviceLayout(mode) {
+  lobbyRoot.classList.remove('device-mobile', 'device-desktop');
+  if (mode === 'mobile') lobbyRoot.classList.add('device-mobile');
+  if (mode === 'desktop') lobbyRoot.classList.add('device-desktop');
+}
+
+function setSiteUrl() {
+  siteUrlEl.textContent = `${window.location.origin}${window.location.pathname}`;
+}
 
 function showScreen(which) {
+  if (which !== 'device') flowScreen = which;
+  screenDevice.classList.toggle('hidden', which !== 'device');
   screenConnect.classList.toggle('hidden', which !== 'connect');
   screenHome.classList.toggle('hidden', which !== 'home');
   screenNaming.classList.toggle('hidden', which !== 'naming');
   screenPlaying.classList.toggle('hidden', which !== 'playing');
+}
+
+function finishDeviceChoice(mode) {
+  saveDeviceMode(mode);
+  applyDeviceLayout(mode);
+  btnChangeDevice.classList.remove('hidden');
+  setSiteUrl();
+  showScreen(flowScreen);
+  const needConnect = !ws || ws.readyState === WebSocket.CLOSED;
+  if (needConnect) connect();
 }
 
 function send(msg) {
@@ -124,6 +174,7 @@ function renderPlayerTable(players) {
 }
 
 function connect() {
+  if (!readSavedDevice()) return;
   showScreen('connect');
   connectStatus.textContent = 'Sunucuya bağlanılıyor…';
 
@@ -237,4 +288,17 @@ btnStartGame.addEventListener('click', () => {
   send({ type: 'start_game' });
 });
 
-connect();
+btnDeviceMobile.addEventListener('click', () => finishDeviceChoice('mobile'));
+btnDeviceDesktop.addEventListener('click', () => finishDeviceChoice('desktop'));
+btnChangeDevice.addEventListener('click', () => {
+  showScreen('device');
+});
+
+setSiteUrl();
+if (readSavedDevice()) {
+  applyDeviceLayout(readSavedDevice());
+  btnChangeDevice.classList.remove('hidden');
+  connect();
+} else {
+  showScreen('device');
+}

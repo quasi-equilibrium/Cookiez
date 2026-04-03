@@ -11,6 +11,131 @@ body {
   max-width: 420px;
   margin: 0 auto;
   padding: 24px 16px 48px;
+  box-sizing: border-box;
+}
+
+#lobby-root.device-desktop {
+  max-width: 560px;
+  padding: 32px 24px 64px;
+}
+
+#lobby-root.device-mobile {
+  max-width: 100%;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 48px
+    max(16px, env(safe-area-inset-left));
+}
+
+.site-url-line {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.site-url {
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.link-btn {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #93c5fd;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:hover {
+  color: #bfdbfe;
+}
+
+.device-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.device-hint {
+  margin-top: 0;
+}
+
+.device-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+#lobby-root.device-desktop .device-pick {
+  flex-direction: row;
+  gap: 16px;
+}
+
+#lobby-root.device-desktop .device-choice {
+  flex: 1;
+  margin-top: 0;
+  min-height: 100px;
+}
+
+.device-choice {
+  text-align: left;
+  padding: 18px 16px;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.device-label {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.device-desc {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#lobby-root.device-mobile .device-choice {
+  min-height: 56px;
+  padding: 20px 18px;
+}
+
+#lobby-root.device-mobile .btn {
+  padding: 16px 18px;
+  font-size: 1.05rem;
+  min-height: 48px;
+}
+
+#lobby-root.device-mobile .code-input,
+#lobby-root.device-mobile .name-input {
+  font-size: 1.2rem;
+  padding: 16px 14px;
+}
+
+#lobby-root.device-mobile .code-display {
+  font-size: 1.95rem;
+  padding: 20px 12px;
+}
+
+#lobby-root.device-mobile .lobby-header h1 {
+  font-size: 1.5rem;
+}
+
+#lobby-root.device-desktop .lobby-header h1 {
+  font-size: 1.5rem;
+}
+
+#lobby-root.device-desktop .lobby-card {
+  padding: 24px;
 }
 
 .lobby-header h1 {
