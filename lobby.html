@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Çok Oyunculu Lobi</title>
+    <link rel="stylesheet" href="/src/lobby.css" />
+  </head>
+  <body>
+    <div id="lobby-root">
+      <header class="lobby-header">
+        <h1>Resim oyunu — Lobi</h1>
+        <p class="lobby-sub">2–6 kişi. Sunucuyu çalıştırmayı unutma: <code>npm run lobby-server</code></p>
+      </header>
+
+      <section id="screen-connect" class="lobby-card">
+        <p class="status" id="connect-status">Sunucuya bağlanılıyor…</p>
+      </section>
+
+      <section id="screen-home" class="lobby-card hidden">
+        <div id="home-actions">
+          <button id="btn-create" class="btn primary" type="button">Oyun kur</button>
+          <div id="created-block" class="hidden">
+            <p class="label">Arkadaşların bu kodu girsin:</p>
+            <div class="code-display" id="room-code-display" aria-live="polite">———</div>
+          </div>
+          <hr class="sep" />
+          <label class="label" for="join-input">6 haneli kod</label>
+          <div class="row">
+            <input
+              id="join-input"
+              class="code-input"
+              type="text"
+              maxlength="6"
+              autocomplete="off"
+              autocapitalize="characters"
+              placeholder="Örn: FTR12V"
+            />
+          </div>
+          <button id="btn-join" class="btn" type="button">Oyuna katıl</button>
+        </div>
+        <p id="waiting-msg" class="waiting-msg hidden">
+          Odaya katıldın. Kurucu <strong>Oyuna başla</strong> deyince isim yazma ekranı açılacak.
+        </p>
+        <p id="join-error" class="error-msg hidden" role="alert"></p>
+        <div id="host-actions" class="hidden">
+          <p class="hint" id="player-count-hint"></p>
+          <button id="btn-start-lobby" class="btn primary hidden" type="button">Oyuna başla</button>
+        </div>
+      </section>
+
+      <section id="screen-naming" class="lobby-card hidden">
+        <h2>İsmini yaz</h2>
+        <p class="hint">En fazla 10 harf.</p>
+        <div class="row">
+          <input id="name-input" class="name-input" type="text" maxlength="10" placeholder="İsim" />
+          <button id="btn-save-name" class="btn" type="button">Kaydet</button>
+        </div>
+        <p id="name-error" class="error-msg hidden" role="alert"></p>
+        <h3 class="table-title">Oyuncular</h3>
+        <table class="player-table" aria-label="Oyuncu listesi">
+          <thead>
+            <tr>
+              <th>Oyuncu</th>
+              <th>İsim</th>
+            </tr>
+          </thead>
+          <tbody id="player-tbody"></tbody>
+        </table>
+        <div id="leader-start-wrap" class="hidden">
+          <button id="btn-start-game" class="btn primary" type="button">Başlat</button>
+          <p class="hint">Herkes ismini kaydettikten sonra lider oyunu başlatır.</p>
+        </div>
+      </section>
+
+      <section id="screen-playing" class="lobby-card hidden">
+        <h2>Oyun hazır</h2>
+        <p>Resim oyunu aşaması bir sonraki adımda eklenecek. Şimdilik lobi ve isimler tamam.</p>
+        <ul id="final-roster" class="roster-list"></ul>
+      </section>
+    </div>
+    <script type="module" src="/src/lobby.js"></script>
+  </body>
+</html>

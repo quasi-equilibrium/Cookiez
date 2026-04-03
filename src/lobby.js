@@ -1,0 +1,240 @@
+const JOIN_NOT_FOUND = 'Böyle bir kod yok :(';
+const JOIN_FULL = 'Oda dolu (en fazla 6 kişi).';
+const JOIN_FORMAT = 'Kod 6 karakter olmalı.';
+
+function wsUrl() {
+  const env = import.meta.env.VITE_LOBBY_WS_URL;
+  if (env) return env;
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  return `${proto}//${host}/lobby-ws`;
+}
+
+const el = (id) => document.getElementById(id);
+
+const screenConnect = el('screen-connect');
+const screenHome = el('screen-home');
+const screenNaming = el('screen-naming');
+const screenPlaying = el('screen-playing');
+const connectStatus = el('connect-status');
+const createdBlock = el('created-block');
+const roomCodeDisplay = el('room-code-display');
+const joinInput = el('join-input');
+const joinError = el('join-error');
+const btnCreate = el('btn-create');
+const btnJoin = el('btn-join');
+const hostActions = el('host-actions');
+const playerCountHint = el('player-count-hint');
+const btnStartLobby = el('btn-start-lobby');
+const homeActions = el('home-actions');
+const waitingMsg = el('waiting-msg');
+const nameInput = el('name-input');
+const nameError = el('name-error');
+const btnSaveName = el('btn-save-name');
+const playerTbody = el('player-tbody');
+const leaderStartWrap = el('leader-start-wrap');
+const btnStartGame = el('btn-start-game');
+const finalRoster = el('final-roster');
+
+let ws = null;
+let myPlayerId = null;
+let lastState = null;
+
+function showScreen(which) {
+  screenConnect.classList.toggle('hidden', which !== 'connect');
+  screenHome.classList.toggle('hidden', which !== 'home');
+  screenNaming.classList.toggle('hidden', which !== 'naming');
+  screenPlaying.classList.toggle('hidden', which !== 'playing');
+}
+
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+
+function applyState(state) {
+  lastState = state;
+  const { phase, players, count, hostId, code } = state;
+  const isHost = myPlayerId === hostId;
+
+  if (phase === 'lobby') {
+    showScreen('home');
+    joinError.classList.add('hidden');
+    const imInRoom = myPlayerId && players.some((p) => p.id === myPlayerId);
+    playerCountHint.textContent = `Oyuncu: ${count} / 6`;
+    if (isHost && code) {
+      homeActions.classList.remove('hidden');
+      waitingMsg.classList.add('hidden');
+      createdBlock.classList.remove('hidden');
+      roomCodeDisplay.textContent = code;
+      hostActions.classList.remove('hidden');
+      btnStartLobby.classList.toggle('hidden', count < 2);
+    } else if (!isHost && imInRoom) {
+      homeActions.classList.add('hidden');
+      waitingMsg.classList.remove('hidden');
+      createdBlock.classList.add('hidden');
+      hostActions.classList.add('hidden');
+    } else {
+      homeActions.classList.remove('hidden');
+      waitingMsg.classList.add('hidden');
+      createdBlock.classList.add('hidden');
+      hostActions.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (phase === 'naming') {
+    showScreen('naming');
+    renderPlayerTable(players);
+    leaderStartWrap.classList.toggle('hidden', !isHost);
+    const allNamed = players.length > 0 && players.every((p) => p.name);
+    btnStartGame.disabled = !allNamed;
+    return;
+  }
+
+  if (phase === 'playing') {
+    showScreen('playing');
+    finalRoster.innerHTML = '';
+    for (const p of players) {
+      const li = document.createElement('li');
+      li.textContent = p.name || p.id;
+      finalRoster.appendChild(li);
+    }
+  }
+}
+
+function renderPlayerTable(players) {
+  playerTbody.innerHTML = '';
+  for (const p of players) {
+    const tr = document.createElement('tr');
+    const tdRole = document.createElement('td');
+    if (p.isHost) {
+      tdRole.innerHTML = `Lider<span class="badge-host">KURAN</span>`;
+    } else {
+      tdRole.textContent = 'Oyuncu';
+    }
+    if (p.id === myPlayerId) {
+      tdRole.innerHTML += '<span class="badge-you">(sen)</span>';
+    }
+    const tdName = document.createElement('td');
+    tdName.textContent = p.name || '—';
+    tr.appendChild(tdRole);
+    tr.appendChild(tdName);
+    playerTbody.appendChild(tr);
+  }
+}
+
+function connect() {
+  showScreen('connect');
+  connectStatus.textContent = 'Sunucuya bağlanılıyor…';
+
+  ws = new WebSocket(wsUrl());
+
+  ws.onopen = () => {
+    connectStatus.textContent = 'Bağlandı.';
+    showScreen('home');
+  };
+
+  ws.onerror = () => {
+    connectStatus.textContent = 'Bağlantı hatası. lobby-server çalışıyor mu?';
+  };
+
+  ws.onclose = () => {
+    connectStatus.textContent = 'Bağlantı koptu. Sayfayı yenile.';
+    showScreen('connect');
+  };
+
+  ws.onmessage = (ev) => {
+    let msg;
+    try {
+      msg = JSON.parse(ev.data);
+    } catch {
+      return;
+    }
+
+    if (msg.type === 'hello') {
+      myPlayerId = msg.playerId;
+      return;
+    }
+
+    if (msg.type === 'created') {
+      myPlayerId = msg.playerId;
+      applyState(msg);
+      return;
+    }
+
+    if (msg.type === 'joined') {
+      myPlayerId = msg.playerId;
+      joinError.classList.add('hidden');
+      applyState(msg);
+      return;
+    }
+
+    if (msg.type === 'join_failed') {
+      const map = {
+        not_found: JOIN_NOT_FOUND,
+        full: JOIN_FULL,
+        invalid_format: JOIN_FORMAT
+      };
+      joinError.textContent = map[msg.reason] || 'Katılınamadı.';
+      joinError.classList.remove('hidden');
+      return;
+    }
+
+    if (msg.type === 'room_state') {
+      applyState(msg);
+      return;
+    }
+
+    if (msg.type === 'game_started') {
+      applyState(msg);
+      return;
+    }
+
+    if (msg.type === 'error') {
+      if (lastState?.phase === 'naming') {
+        nameError.textContent = msg.message;
+        nameError.classList.remove('hidden');
+      } else {
+        joinError.textContent = msg.message;
+        joinError.classList.remove('hidden');
+      }
+    }
+  };
+}
+
+btnCreate.addEventListener('click', () => {
+  joinError.classList.add('hidden');
+  send({ type: 'create' });
+});
+
+btnJoin.addEventListener('click', () => {
+  joinError.classList.add('hidden');
+  const raw = joinInput.value.trim();
+  send({ type: 'join', code: raw });
+});
+
+joinInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') btnJoin.click();
+});
+
+btnStartLobby.addEventListener('click', () => {
+  send({ type: 'start_lobby' });
+});
+
+btnSaveName.addEventListener('click', () => {
+  nameError.classList.add('hidden');
+  const name = nameInput.value.trim().slice(0, 10);
+  if (!name.length) {
+    nameError.textContent = 'İsim yaz.';
+    nameError.classList.remove('hidden');
+    return;
+  }
+  send({ type: 'set_name', name });
+});
+
+btnStartGame.addEventListener('click', () => {
+  nameError.classList.add('hidden');
+  send({ type: 'start_game' });
+});
+
+connect();
