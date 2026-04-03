@@ -2,14 +2,22 @@
 
 WebSocket ile oda kurma, kod ile katılma, isim verme ve liderin başlatması.
 
-## Çalıştırma
+## Çalıştırma (localhost)
+
+Lobi hem **Vite** hem **WebSocket sunucusu** ister. Tek komut:
 
 ```bash
 npm install
-npm run dev:all
+npm start
 ```
 
-Tarayıcı: `http://localhost:5173/` (Vite, `/lobby-ws` isteğini `8765` portuna yönlendirir). Sayfada **Oyun adresi** satırında paylaşılacak tam URL de gösterilir; yayına aldığında orası canlı linkin olur.
+Tarayıcıda aç: **http://localhost:5173/**
+
+Sadece `npm run dev` çalıştırırsan WebSocket olmaz; sayfa bağlanamaz. Alternatif: iki terminalde `npm run lobby-server` ve `npm run dev`.
+
+Telefondan aynı ağda test için Vite çıktısındaki **Network** adresini kullan (ör. `http://192.168.1.x:5173/`).
+
+Sayfada **Oyun adresi** satırında paylaşılacak tam URL de gösterilir; yayına aldığında orası canlı linkin olur.
 
 İlk açılışta **Mobil** veya **PC** seçilir; düzen buna göre ayarlanır (tercih tarayıcıda saklanır). **Cihazı değiştir** ile tekrar seçebilirsin.
 

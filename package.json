@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "concurrently -k \"npm run lobby-server\" \"vite\"",
     "dev": "vite",
     "dev:all": "concurrently -k \"npm run lobby-server\" \"vite\"",
     "lobby-server": "node server/lobbyServer.mjs",

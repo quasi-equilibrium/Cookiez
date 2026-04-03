@@ -25,6 +25,8 @@ const screenHome = el('screen-home');
 const screenNaming = el('screen-naming');
 const screenPlaying = el('screen-playing');
 const connectStatus = el('connect-status');
+const connectHelp = el('connect-help');
+const btnRetryConnect = el('btn-retry-connect');
 const createdBlock = el('created-block');
 const roomCodeDisplay = el('room-code-display');
 const joinInput = el('join-input');
@@ -47,6 +49,9 @@ const finalRoster = el('final-roster');
 let ws = null;
 let myPlayerId = null;
 let lastState = null;
+/** Bu sayfa yüklemesinde en az bir kez WebSocket açıldı mı */
+let wsOpenedThisPage = false;
+let connectStuckTimer = null;
 /** Son oyun ekranı (cihaz seçiminden sonra dönülecek) */
 let flowScreen = 'connect';
 
@@ -173,28 +178,65 @@ function renderPlayerTable(players) {
   }
 }
 
+function clearConnectStuckTimer() {
+  if (connectStuckTimer) {
+    clearTimeout(connectStuckTimer);
+    connectStuckTimer = null;
+  }
+}
+
 function connect() {
   if (!readSavedDevice()) return;
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  clearConnectStuckTimer();
   showScreen('connect');
+  connectHelp.classList.add('hidden');
   connectStatus.textContent = 'Sunucuya bağlanılıyor…';
 
-  ws = new WebSocket(wsUrl());
+  const sock = new WebSocket(wsUrl());
+  ws = sock;
 
-  ws.onopen = () => {
+  connectStuckTimer = setTimeout(() => {
+    if (ws === sock && sock.readyState === WebSocket.CONNECTING) {
+      connectStatus.textContent = 'Sunucu yanıt vermiyor.';
+      connectHelp.classList.remove('hidden');
+    }
+  }, 6000);
+
+  sock.onopen = () => {
+    if (ws !== sock) return;
+    clearConnectStuckTimer();
+    wsOpenedThisPage = true;
+    connectHelp.classList.add('hidden');
     connectStatus.textContent = 'Bağlandı.';
     showScreen('home');
   };
 
-  ws.onerror = () => {
-    connectStatus.textContent = 'Bağlantı hatası. lobby-server çalışıyor mu?';
+  sock.onerror = () => {
+    if (ws !== sock) return;
+    connectStatus.textContent = 'Bağlantı hatası.';
+    if (!wsOpenedThisPage) connectHelp.classList.remove('hidden');
   };
 
-  ws.onclose = () => {
-    connectStatus.textContent = 'Bağlantı koptu. Sayfayı yenile.';
+  sock.onclose = () => {
+    if (ws !== sock) return;
+    clearConnectStuckTimer();
+    if (!wsOpenedThisPage) {
+      connectStatus.textContent = 'Sunucuya bağlanılamadı.';
+      connectHelp.classList.remove('hidden');
+    } else {
+      connectStatus.textContent = 'Bağlantı koptu. Sayfayı yenile veya Tekrar dene.';
+      connectHelp.classList.remove('hidden');
+    }
     showScreen('connect');
+    if (ws === sock) ws = null;
   };
 
-  ws.onmessage = (ev) => {
+  sock.onmessage = (ev) => {
+    if (ws !== sock) return;
     let msg;
     try {
       msg = JSON.parse(ev.data);
@@ -292,6 +334,11 @@ btnDeviceMobile.addEventListener('click', () => finishDeviceChoice('mobile'));
 btnDeviceDesktop.addEventListener('click', () => finishDeviceChoice('desktop'));
 btnChangeDevice.addEventListener('click', () => {
   showScreen('device');
+});
+
+btnRetryConnect.addEventListener('click', () => {
+  connectHelp.classList.add('hidden');
+  connect();
 });
 
 setSiteUrl();

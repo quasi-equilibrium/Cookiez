@@ -10,7 +10,10 @@
     <div id="lobby-root">
       <header class="lobby-header">
         <h1>Resim oyunu — Lobi</h1>
-        <p class="lobby-sub">2–6 kişi. Sunucuyu çalıştırmayı unutma: <code>npm run lobby-server</code></p>
+        <p class="lobby-sub">
+          2–6 kişi. Yerelde önce terminalde <code>npm start</code> çalıştır; tarayıcıda
+          <strong>http://localhost:5173/</strong> aç.
+        </p>
         <p class="site-url-line">
           Oyun adresi: <span id="site-url" class="site-url"></span>
         </p>
@@ -34,6 +37,15 @@
 
       <section id="screen-connect" class="lobby-card hidden">
         <p class="status" id="connect-status">Sunucuya bağlanılıyor…</p>
+        <div id="connect-help" class="connect-help hidden">
+          <p class="connect-help-title">Sunucuya bağlanılamıyor</p>
+          <p class="hint">Proje klasöründe terminal açıp şunları çalıştır (ikisi birden açılır):</p>
+          <pre class="cmd-block" id="connect-cmd">npm install
+npm start</pre>
+          <p class="hint">Sonra adres çubuğuna yaz: <strong class="mono">http://localhost:5173/</strong></p>
+          <p class="hint">Telefondan aynı Wi‑Fi’deysen, Vite terminalinde görünen <strong>Network</strong> adresini kullan.</p>
+          <button id="btn-retry-connect" class="btn primary" type="button">Tekrar dene</button>
+        </div>
       </section>
 
       <section id="screen-home" class="lobby-card hidden">
