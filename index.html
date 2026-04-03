@@ -1,256 +1,84 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>ARCADE DUEL — Split-Screen FPS</title>
-    <link rel="stylesheet" href="/src/style.css" />
+    <title>Çok Oyunculu Lobi</title>
+    <link rel="stylesheet" href="/src/lobby.css" />
   </head>
   <body>
-    <!-- One WebGL canvas, rendered twice with scissor for split-screen. -->
-    <div id="app">
-      <canvas id="game"></canvas>
+    <div id="lobby-root">
+      <header class="lobby-header">
+        <h1>Resim oyunu — Lobi</h1>
+        <p class="lobby-sub">2–6 kişi. Sunucuyu çalıştırmayı unutma: <code>npm run lobby-server</code></p>
+      </header>
 
-      <!-- Global overlays (full width) -->
-      <div id="global-ui" class="ui-layer">
-        <div id="build-tag" class="build-tag">build</div>
-        <div id="scoreboard" class="scoreboard hidden">P1: 0 | P2: 0</div>
-        <div id="split-bar" class="split-bar hidden"></div>
-        <div id="center-msg" class="center-msg hidden">FIGHT</div>
-        <div id="weather-pill" class="weather-pill hidden" data-weather="sun" aria-label="Seçili hava durumu"></div>
-        <div id="kill-pop-global" class="kill-pop-global" aria-hidden="true">☠</div>
-        <div id="toast-msg" class="toast-msg" aria-live="polite"></div>
-        <div id="badge-toast" class="badge-toast" aria-live="polite" aria-atomic="true">
-          <div class="badge-toast-title" id="badge-toast-title">YUMURTA</div>
-          <div class="badge-toast-sub" id="badge-toast-sub">Badge kazanıldı</div>
-        </div>
+      <section id="screen-connect" class="lobby-card">
+        <p class="status" id="connect-status">Sunucuya bağlanılıyor…</p>
+      </section>
 
-        <!-- Inventory: just a bag icon. Clicking opens full-screen inventory -->
-        <button id="inv-bag" class="inv-bag hidden" type="button" aria-label="Envanteri aç"></button>
-
-        <div id="inv-overlay" class="inv-overlay hidden" role="dialog" aria-label="Envanter">
-          <div class="inv-modal">
-            <div class="inv-header">
-              <div class="inv-title">ENVANTER</div>
-              <button id="inv-close" class="btn" type="button">Kapat</button>
-            </div>
-            <div class="inv-sub">Sadece packten çıkanlar görünür. Seçmek için üstüne tıkla.</div>
-            <div id="inv-grid" class="inv-grid"></div>
-            <div id="inv-empty" class="inv-empty hidden">Henüz bir şey çıkmadı.</div>
+      <section id="screen-home" class="lobby-card hidden">
+        <div id="home-actions">
+          <button id="btn-create" class="btn primary" type="button">Oyun kur</button>
+          <div id="created-block" class="hidden">
+            <p class="label">Arkadaşların bu kodu girsin:</p>
+            <div class="code-display" id="room-code-display" aria-live="polite">———</div>
           </div>
-        </div>
-
-        <div id="win-screen" class="win-screen hidden">
-          <div class="win-title" id="win-title">P1 WINS</div>
-          <div class="win-sub" id="win-sub">Rate us ⭐⭐⭐⭐⭐</div>
-          <div class="stars" id="stars" aria-label="Rating">
-            <button class="star" data-star="1" type="button" aria-label="1 star">★</button>
-            <button class="star" data-star="2" type="button" aria-label="2 stars">★</button>
-            <button class="star" data-star="3" type="button" aria-label="3 stars">★</button>
-            <button class="star" data-star="4" type="button" aria-label="4 stars">★</button>
-            <button class="star" data-star="5" type="button" aria-label="5 stars">★</button>
+          <hr class="sep" />
+          <label class="label" for="join-input">6 haneli kod</label>
+          <div class="row">
+            <input
+              id="join-input"
+              class="code-input"
+              type="text"
+              maxlength="6"
+              autocomplete="off"
+              autocapitalize="characters"
+              placeholder="Örn: FTR12V"
+            />
           </div>
-          <button id="save-btn" class="btn">Kaydet</button>
+          <button id="btn-join" class="btn" type="button">Oyuna katıl</button>
         </div>
-
-        <div id="controls-help" class="controls-help hidden">
-          <div class="controls-card">
-            <div class="controls-title">Controls</div>
-            <div class="controls-grid">
-              <div class="controls-col">
-                <div class="controls-col-title">Player 1 (Left)</div>
-                <div>Move: <b>WASD</b></div>
-                <div>Look: <b>Q/H/T/G</b></div>
-                <div>Jump: <b>Space</b></div>
-                <div>Use arcade: <b>E</b></div>
-                <div>Reload: <b>R</b></div>
-                <div>Fire: <b>Shift</b> (alt) / <b>Mouse Left</b> (optional)</div>
-              </div>
-              <div class="controls-col">
-                <div class="controls-col-title">Player 2 (Right)</div>
-                <div>Move: <b>Arrow Keys</b></div>
-                <div>Look: <b>Mouse</b> (pointer lock)</div>
-                <div>Fire: <b>Mouse Left</b></div>
-                <div>Use arcade: <b>Mouse Right</b></div>
-                <div>Reload: <b>Mouse Middle</b></div>
-                <div>Exit pointer lock: <b>Esc</b></div>
-              </div>
-            </div>
-            <div class="controls-foot">
-              <div>Toggle help: <b>P</b></div>
-              <div style="margin-top:8px;">
-                Mouse Fire:
-                <select id="mouse-fire-live">
-                  <option value="p2">P2 only</option>
-                  <option value="both">Both</option>
-                </select>
-              </div>
-            </div>
-          </div>
+        <p id="waiting-msg" class="waiting-msg hidden">
+          Odaya katıldın. Kurucu <strong>Oyuna başla</strong> deyince isim yazma ekranı açılacak.
+        </p>
+        <p id="join-error" class="error-msg hidden" role="alert"></p>
+        <div id="host-actions" class="hidden">
+          <p class="hint" id="player-count-hint"></p>
+          <button id="btn-start-lobby" class="btn primary hidden" type="button">Oyuna başla</button>
         </div>
-      </div>
+      </section>
 
-      <!-- Per-player half overlays (must ONLY appear on that half) -->
-      <div id="hud-p1" class="hud half left">
-        <div class="prompt" id="p1-prompt"></div>
-        <div class="invuln" id="p1-invuln"></div>
-        <div class="weapon" id="p1-weapon"></div>
-        <div class="crosshair" aria-hidden="true"></div>
-        <div id="p1-kill-pop" class="kill-pop" aria-hidden="true">☠</div>
-        <div id="p1-scope" class="scope-overlay hidden" aria-hidden="true">
-          <div class="scope-ring"></div>
-          <div class="scope-lines"></div>
+      <section id="screen-naming" class="lobby-card hidden">
+        <h2>İsmini yaz</h2>
+        <p class="hint">En fazla 10 harf.</p>
+        <div class="row">
+          <input id="name-input" class="name-input" type="text" maxlength="10" placeholder="İsim" />
+          <button id="btn-save-name" class="btn" type="button">Kaydet</button>
         </div>
-        <canvas id="p1-radar" class="radar radar-left" width="160" height="160"></canvas>
-        <div class="hp-bar-wrap left">
-          <div class="hp-label">P1 HP</div>
-          <div class="hp-bar"><div class="hp-fill" id="p1-hp"></div></div>
+        <p id="name-error" class="error-msg hidden" role="alert"></p>
+        <h3 class="table-title">Oyuncular</h3>
+        <table class="player-table" aria-label="Oyuncu listesi">
+          <thead>
+            <tr>
+              <th>Oyuncu</th>
+              <th>İsim</th>
+            </tr>
+          </thead>
+          <tbody id="player-tbody"></tbody>
+        </table>
+        <div id="leader-start-wrap" class="hidden">
+          <button id="btn-start-game" class="btn primary" type="button">Başlat</button>
+          <p class="hint">Herkes ismini kaydettikten sonra lider oyunu başlatır.</p>
         </div>
-      </div>
+      </section>
 
-      <div id="hud-p2" class="hud half right">
-        <div class="prompt" id="p2-prompt"></div>
-        <div class="invuln" id="p2-invuln"></div>
-        <div class="weapon" id="p2-weapon"></div>
-        <div class="crosshair" aria-hidden="true"></div>
-        <div id="p2-kill-pop" class="kill-pop" aria-hidden="true">☠</div>
-        <div id="p2-scope" class="scope-overlay hidden" aria-hidden="true">
-          <div class="scope-ring"></div>
-          <div class="scope-lines"></div>
-        </div>
-        <canvas id="p2-radar" class="radar radar-right" width="160" height="160"></canvas>
-        <div class="hp-bar-wrap right">
-          <div class="hp-label">P2 HP</div>
-          <div class="hp-bar"><div class="hp-fill" id="p2-hp"></div></div>
-        </div>
-      </div>
-
-      <!-- Task overlays: isolated per-half -->
-      <div id="task-p1" class="task-overlay half left hidden"></div>
-      <div id="task-p2" class="task-overlay half right hidden"></div>
-
-      <!-- Menu / start transition overlay -->
-      <div id="menu" class="menu">
-        <!-- Corner buttons (menu only) -->
-        <button id="vip-btn" class="corner-btn corner-left" type="button" title="VIP">WIP</button>
-        <button id="code-btn" class="corner-btn corner-right" type="button" title="Kod">?</button>
-
-        <!-- Left menu buttons -->
-        <button id="intro-btn" class="menu-left-btn intro-btn" type="button" title="Intro">INTRO</button>
-        <button id="ach-btn" class="menu-left-btn ach-btn" type="button" title="Başarımlar" aria-label="Başarımlar"></button>
-
-        <!-- Intro overlay -->
-        <div id="intro-overlay" class="intro-overlay hidden" role="dialog" aria-label="Intro">
-          <div id="intro-sheet" class="intro-sheet">
-            <div class="intro-line intro-title">INTRO</div>
-            <div class="intro-line">Yapımcılar Cookiez</div>
-            <div class="intro-line">Egemen</div>
-            <div class="intro-line">hüseyin</div>
-            <div class="intro-line">yarıdımcı cursor</div>
-          </div>
-          <button id="intro-egg" class="intro-egg hidden" type="button" aria-label="Yumurta">
-            <span class="egg"></span>
-          </button>
-        </div>
-
-        <!-- Achievements overlay -->
-        <div id="ach-overlay" class="inv-overlay hidden" role="dialog" aria-label="Başarımlar">
-          <div class="inv-modal">
-            <div class="inv-header">
-              <div class="inv-title">BAŞARIMLAR</div>
-              <button id="ach-close" class="btn" type="button">Kapat</button>
-            </div>
-            <div class="inv-sub">Badge’ler: bulunca açılır.</div>
-            <div id="ach-grid" class="ach-grid"></div>
-          </div>
-        </div>
-
-        <!-- Code overlay -->
-        <div id="code-overlay" class="code-overlay hidden">
-          <div class="code-modal">
-            <div class="code-title">kodu giriniz:</div>
-            <div class="code-row">
-              <input id="code-input" class="code-input" type="text" placeholder="..." />
-              <button id="code-submit" class="btn" type="button">OK</button>
-            </div>
-            <div id="code-msg" class="code-msg"></div>
-            <button id="code-close" class="btn" type="button">Kapat</button>
-          </div>
-        </div>
-
-        <!-- VIP overlay -->
-        <div id="vip-overlay" class="code-overlay hidden">
-          <div class="code-modal">
-            <div class="code-title">VIP kodunu giriniz:</div>
-            <div class="code-row">
-              <input id="vip-input" class="code-input" type="text" placeholder="..." />
-              <button id="vip-submit" class="btn" type="button">OK</button>
-            </div>
-            <div id="vip-msg" class="code-msg"></div>
-            <button id="vip-all" class="btn hidden" type="button">ALL VIP</button>
-            <button id="vip-close" class="btn" type="button">Kapat</button>
-          </div>
-        </div>
-
-        <div class="menu-center">
-          <div class="title">ARCADE DUEL</div>
-          <button id="start-btn" class="btn btn-start">START</button>
-          <div class="menu-row">
-            <button id="fullscreen-btn" class="btn">Fullscreen</button>
-            <label class="vol">
-              Volume
-              <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" />
-            </label>
-          </div>
-          <div class="menu-row">
-            <label class="toggle">
-              Mouse Fire:
-              <select id="mouse-fire">
-                <option value="p2">P2 only</option>
-                <option value="both">Both</option>
-              </select>
-            </label>
-            <div class="hint">Press <b>P</b> for controls help.</div>
-          </div>
-        </div>
-
-        <!-- Weather pack UI (menu only) -->
-        <div id="pack-btn" class="pack-btn" title="Open weather pack">
-          <div class="pack-mini">
-            <div class="icon sun"></div>
-            <div class="icon cloud"></div>
-            <div class="icon bolt"></div>
-            <div class="icon volcano"></div>
-          </div>
-          <div class="pack-mini-label">PACK</div>
-        </div>
-
-        <div id="pack-overlay" class="pack-overlay hidden">
-          <div class="pack-modal">
-            <div class="pack-title">Weather Pack</div>
-            <div id="pack-status" class="pack-status">2/2 PACK HAKKIN VAR</div>
-            <div id="pack-big" class="pack-big">
-              <div class="pack-art">
-                <div class="icon sun"></div>
-                <div class="icon cloud"></div>
-                <div class="icon bolt"></div>
-                <div class="icon volcano"></div>
-              </div>
-              <div class="pack-text">CLICK TO OPEN</div>
-            </div>
-            <div id="pack-result" class="pack-result hidden">
-              <div class="pack-result-title">YOU GOT</div>
-              <div id="pack-result-item" class="pack-result-item">SUN</div>
-              <button id="pack-close" class="btn">Close</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="fade" class="fade"></div>
-      </div>
+      <section id="screen-playing" class="lobby-card hidden">
+        <h2>Oyun hazır</h2>
+        <p>Resim oyunu aşaması bir sonraki adımda eklenecek. Şimdilik lobi ve isimler tamam.</p>
+        <ul id="final-roster" class="roster-list"></ul>
+      </section>
     </div>
-
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/lobby.js"></script>
   </body>
 </html>
-
